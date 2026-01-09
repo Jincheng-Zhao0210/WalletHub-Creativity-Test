@@ -148,7 +148,7 @@ section.main { background: #f6f7fb; }
 )
 
 # --------------------------------------------------
-# AI helpers: cap to 8 sentences + nicer segmentation fallback
+# AI helpers: cap to 8 sentences + natural segmentation
 # --------------------------------------------------
 def _cap_to_8_sentences(text: str) -> str:
     if not text:
@@ -160,40 +160,85 @@ def _cap_to_8_sentences(text: str) -> str:
         capped = capped[:650].rsplit(" ", 1)[0] + "…"
     return capped
 
-def _ensure_segmented(text: str) -> str:
+def _natural_segment(text: str) -> str:
     """
-    If model ignores structure, try to add some spacing so UI is readable.
+    Convert long AI paragraph into clean, natural segments:
+    - short paragraphs
+    - simple bullets
+    - no rigid headings
     """
     if not text:
         return text
-    # If it already contains our headings, keep it.
-    if "**Overview:**" in text and "**Best places to explore:**" in text:
-        return text.strip()
-    # Otherwise, just add line breaks between sentences to improve readability.
-    parts = re.split(r"(?<=[.!?])\s+", text.strip())
-    return "\n\n".join(parts)
+
+    s = re.sub(r"\s+", " ", text).strip()
+
+    # Force bullets onto new lines if model writes "- Budgeting:" mid-line
+    s = re.sub(
+        r"\s-\s+(Budgeting|Credit|Offers|Investments|Identity)\s*:",
+        r"\n\n- \1:",
+        s,
+        flags=re.I,
+    )
+
+    # Split into sentences and rebuild into readable blocks
+    sentences = re.split(r"(?<=[.!?])\s+", s)
+
+    blocks = []
+    current = ""
+
+    for sent in sentences:
+        sent = sent.strip()
+        if not sent:
+            continue
+
+        # If a bullet starts, flush current paragraph first
+        if sent.startswith("- "):
+            if current:
+                blocks.append(current.strip())
+                current = ""
+            blocks.append(sent)
+            continue
+
+        # Keep paragraphs short (2 sentences max)
+        if current:
+            current = current + " " + sent
+        else:
+            current = sent
+
+        # Decide when to flush a paragraph
+        current_sentence_count = len(re.split(r"(?<=[.!?])\s+", current.strip()))
+        if current_sentence_count >= 2:
+            blocks.append(current.strip())
+            current = ""
+
+    if current:
+        blocks.append(current.strip())
+
+    # Join: paragraphs separated by blank lines; bullets already separated
+    out = "\n\n".join(blocks)
+    out = re.sub(r"\n{3,}", "\n\n", out).strip()
+    return out
 
 # --------------------------------------------------
-# AI (Segmented + <= 8 sentences)
+# AI (Natural, no rigid format, no forced "next clicks")
 # --------------------------------------------------
 def ask_ai(question: str) -> str:
     prompt = f"""
 You are a friendly AI onboarding assistant for a finance app UI.
 
+Your role:
+- Help users understand what this app offers
+- Explain financial concepts in plain, simple English
+- Gently guide users without giving rigid steps
+- Never claim access to personal or private data
+
 Important rules:
-- Reply in NO MORE THAN 8 sentences total.
-- Keep the response segmented with short labeled sections.
-- Use this structure (exactly):
-  **Overview:** <1 sentence>
-  **Best places to explore:**
-  - Budgeting: <1 sentence>
-  - Credit: <1 sentence>
-  - Offers: <1 sentence>
-  - Investments: <1 sentence>
-  - Identity: <1 sentence>
-  **Quick question:** <1 short question>
-- No numbered lists. Bullets are OK.
-- Never claim access to personal/private data.
+- Keep the answer NO MORE THAN 8 sentences.
+- Write in a clean, readable way using short paragraphs.
+- If you mention multiple app areas, feel free to use simple bullets.
+- Do NOT use rigid templates or labeled sections (no "Overview:", "Best places:", etc).
+- Do NOT give compliance-style or scripted answers.
+- If the question is vague, ask ONE short clarifying question (still within 8 sentences).
 
 Context:
 This app includes budgeting, credit education, offers comparison, investments tracking, and identity protection.
@@ -202,7 +247,7 @@ It is for learning and navigation only (no login, no private data).
 User question:
 {question}
 
-Respond in clean Markdown so it renders nicely.
+Respond naturally like a helpful product guide, in Markdown.
 """
     try:
         r = client.chat.completions.create(
@@ -215,7 +260,7 @@ Respond in clean Markdown so it renders nicely.
         )
         raw = r.choices[0].message.content.strip()
         capped = _cap_to_8_sentences(raw)
-        return _ensure_segmented(capped)
+        return _natural_segment(capped)
     except Exception:
         return "Sorry — I ran into a temporary issue. Please try again."
 
@@ -228,6 +273,7 @@ def push_chat(q: str):
 # --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
+        # Use your picture (no robot emoji)
         img_candidates = ["ai_assistant.png", "picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
@@ -267,7 +313,7 @@ if st.session_state.show_ai:
 
         st.divider()
 
-        # Render chat with Markdown so sections/bullets show cleanly
+        # Render chat as Markdown so paragraphs/bullets display properly
         for role, msg in st.session_state.chat[-10:]:
             st.markdown(f"**{role}:**")
             st.markdown(msg)
@@ -310,7 +356,7 @@ with left:
         unsafe_allow_html=True,
     )
 
-    # Description before the Ask AI Assistant button
+    # AI description before the button
     st.markdown(
         '<div class="ai-helper"><b>AI Assistance:</b> We also have AI Assistance to help you learn more, '
         'explore features, and get simple explanations in plain English.</div>',
