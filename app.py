@@ -56,8 +56,8 @@ section.main { background: #f6f7fb; }
   font-family:Georgia,"Times New Roman",serif; font-size:72px; font-weight:700;
   line-height:.98; color:#0f172a; margin:0;
 }
-.hero-sub{ font-size:16px; color:#475569; margin-top:14px; max-width:620px; }
-.hero-cta-row{ margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.hero-sub{ font-size:16px; color:#475569; margin-top:14px; max-width:680px; }
+.hero-cta-row{ margin-top:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
 .note{ font-size:12px; color:#64748b; margin-top:10px; }
 
 /* --- Video card --- */
@@ -138,7 +138,7 @@ section.main { background: #f6f7fb; }
 )
 
 # --------------------------------------------------
-# AI (Natural, no rigid format, no forced "next clicks")
+# AI (Natural, no rigid format)
 # --------------------------------------------------
 def ask_ai(question: str) -> str:
     prompt = f"""
@@ -188,7 +188,6 @@ def push_chat(q: str):
 # --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
-        # Use your picture (no robot emoji)
         img_candidates = ["ai_assistant.png", "picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
@@ -257,23 +256,41 @@ st.markdown(
 )
 
 # --------------------------------------------------
-# Hero
+# Hero (8–10 sentences + AI button higher + description)
 # --------------------------------------------------
 left, right = st.columns([1.25, 1])
 with left:
     st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
     st.markdown('<p class="hero-title">Supercharge<br/>Your Finances</p>', unsafe_allow_html=True)
+
     st.markdown(
-        '<div class="hero-sub">FinanceHub helps you make the most of your money. '
-        'Strengthen your credit, budget better, track offers, monitor investments, and protect your identity — all in one place.</div>',
+        """
+<div class="hero-sub">
+FinanceHub is a simple place to explore the most important parts of personal finance in one dashboard.
+If you’re new, it helps you understand what each feature does without needing deep financial knowledge.
+You can learn how budgeting works, track spending patterns, and spot subscriptions that quietly waste money.
+In the Credit area, you can learn what affects credit scores and what actions usually improve them over time.
+In Offers, you can compare common financial products and understand what “good terms” usually mean.
+In Investments, you can learn how to monitor progress and stay focused on long-term goals instead of noise.
+In Identity protection, you can explore safety tools and understand how monitoring helps reduce risk.
+This demo is designed for onboarding and education, so it does not require login and it does not use private data.
+If you ever feel lost, the app is built to guide you back to the right section quickly.
+</div>
+""",
         unsafe_allow_html=True,
     )
+
     st.markdown('<div class="hero-cta-row">', unsafe_allow_html=True)
-    st.button("Get Started for Free", type="primary")
     if st.button("Ask AI Assistant"):
         st.session_state.show_ai = True
         st.rerun()
+    st.markdown(
+        '<span class="note">We also have AI Assistance which can help you to know more and provide service while you explore the app.</span>',
+        unsafe_allow_html=True,
+    )
     st.markdown("</div>", unsafe_allow_html=True)
+
+    st.button("Get Started for Free", type="primary")
     st.markdown('<div class="note">AI is optional: education + navigation (no login, no private data).</div>', unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
