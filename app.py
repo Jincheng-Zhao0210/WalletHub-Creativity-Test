@@ -35,7 +35,7 @@ CHAT_MODEL = (
 )
 
 # ----------------------------
-# Styling (simple, similar feel)
+# Styling
 # ----------------------------
 st.markdown(
     """
@@ -100,7 +100,6 @@ st.markdown(
   .ai-title { font-weight: 800; font-size: 20px; margin-top: 6px; }
   .ai-desc { font-size: 13px; opacity: 0.82; line-height: 1.35; }
   .ai-sub { font-size: 12px; opacity: 0.72; }
-  .ai-chip { font-size: 12px; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -153,19 +152,16 @@ Answer with:
     except Exception as e:
         return f"Sorry — I hit an error calling the model: {e}"
 
-
 def push_chat(q: str):
     st.session_state.chat.append(("user", q))
     st.session_state.chat.append(("assistant", ask_ai(q)))
-
 
 # ----------------------------
 # Sidebar: AI Assistant (ONLY when activated)
 # ----------------------------
 if st.session_state.show_ai:
     with st.sidebar:
-        # AI picture (use your own image file named "picture.*")
-        # Recommended: picture.png (place in repo root)
+        # Use your AI picture in repo root: picture.png
         img_candidates = ["picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
@@ -186,7 +182,6 @@ Focus: education, navigation, and discovery (not personalized financial advice).
             unsafe_allow_html=True,
         )
 
-        # Close button
         if st.button("Close AI Assistant", use_container_width=True):
             st.session_state.show_ai = False
             st.rerun()
@@ -194,7 +189,6 @@ Focus: education, navigation, and discovery (not personalized financial advice).
         st.divider()
         st.caption("Example prompts (click to try):")
 
-        # Example prompt buttons (including “60-sec tour”)
         if st.button("60-sec tour", use_container_width=True):
             push_chat("Give me a 60-second tour of this app. Where should a new user start?")
         if st.button("Where should I start?", use_container_width=True):
@@ -208,7 +202,6 @@ Focus: education, navigation, and discovery (not personalized financial advice).
 
         st.divider()
 
-        # Show recent chat
         for role, msg in st.session_state.chat[-10:]:
             st.markdown(f"**{'You' if role == 'user' else 'AI'}:** {msg}")
 
@@ -283,7 +276,7 @@ def section(kicker, title, features, footer_link="View all features →"):
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ----------------------------
-# Main sections (important only)
+# Main sections
 # ----------------------------
 section(
     "BUDGETING & SPENDING",
@@ -341,4 +334,3 @@ section(
 )
 
 st.caption("Demo UI + optional onboarding AI. No login and no private user data.")
-
