@@ -148,43 +148,52 @@ section.main { background: #f6f7fb; }
 )
 
 # --------------------------------------------------
-# AI (Natural, no rigid format, no forced "next clicks")
+# AI helpers: cap to 8 sentences + nicer segmentation fallback
 # --------------------------------------------------
 def _cap_to_8_sentences(text: str) -> str:
-    """Hard cap output to <= 8 sentences, preserving natural punctuation."""
     if not text:
         return text
-    # Normalize whitespace
     t = re.sub(r"\s+", " ", text).strip()
-
-    # Split on sentence endings. This is simple but works well for UI chat.
     parts = re.split(r"(?<=[.!?])\s+", t)
-
     capped = " ".join(parts[:8]).strip()
-
-    # If model returned no sentence punctuation, cap by length as fallback
-    if capped == t and len(parts) <= 1 and len(capped) > 600:
-        capped = capped[:600].rsplit(" ", 1)[0] + "…"
-
+    if capped == t and len(parts) <= 1 and len(capped) > 650:
+        capped = capped[:650].rsplit(" ", 1)[0] + "…"
     return capped
 
+def _ensure_segmented(text: str) -> str:
+    """
+    If model ignores structure, try to add some spacing so UI is readable.
+    """
+    if not text:
+        return text
+    # If it already contains our headings, keep it.
+    if "**Overview:**" in text and "**Best places to explore:**" in text:
+        return text.strip()
+    # Otherwise, just add line breaks between sentences to improve readability.
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    return "\n\n".join(parts)
+
+# --------------------------------------------------
+# AI (Segmented + <= 8 sentences)
+# --------------------------------------------------
 def ask_ai(question: str) -> str:
     prompt = f"""
 You are a friendly AI onboarding assistant for a finance app UI.
 
-Your role:
-- Help users understand what this app offers
-- Explain financial concepts in plain, simple English
-- Gently guide users without giving rigid steps
-- Never claim access to personal or private data
-
 Important rules:
 - Reply in NO MORE THAN 8 sentences total.
-- Do NOT use fixed formats, numbered lists, or checklists unless the user asks for them
-- Do NOT give compliance-style or scripted answers
-- Keep the tone natural, supportive, and conversational
-- If helpful, casually mention where in the app a feature lives (e.g., “Credit section”)
-- If the question is vague, ask ONE short clarifying question (and keep it within 8 sentences)
+- Keep the response segmented with short labeled sections.
+- Use this structure (exactly):
+  **Overview:** <1 sentence>
+  **Best places to explore:**
+  - Budgeting: <1 sentence>
+  - Credit: <1 sentence>
+  - Offers: <1 sentence>
+  - Investments: <1 sentence>
+  - Identity: <1 sentence>
+  **Quick question:** <1 short question>
+- No numbered lists. Bullets are OK.
+- Never claim access to personal/private data.
 
 Context:
 This app includes budgeting, credit education, offers comparison, investments tracking, and identity protection.
@@ -193,7 +202,7 @@ It is for learning and navigation only (no login, no private data).
 User question:
 {question}
 
-Respond naturally, like a helpful product guide.
+Respond in clean Markdown so it renders nicely.
 """
     try:
         r = client.chat.completions.create(
@@ -205,7 +214,8 @@ Respond naturally, like a helpful product guide.
             temperature=0.6,
         )
         raw = r.choices[0].message.content.strip()
-        return _cap_to_8_sentences(raw)
+        capped = _cap_to_8_sentences(raw)
+        return _ensure_segmented(capped)
     except Exception:
         return "Sorry — I ran into a temporary issue. Please try again."
 
@@ -218,7 +228,6 @@ def push_chat(q: str):
 # --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
-        # Use your picture (no robot emoji)
         img_candidates = ["ai_assistant.png", "picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
@@ -230,7 +239,7 @@ if st.session_state.show_ai:
   <div class="ai-title">AI Assistant</div>
   <p class="ai-desc">
     Hi! I am your <span class="ai-highlight">AI assistant</span>.<br/>
-    You can ask me questions about this app, explore features, and get simple explanations in plain English.
+    Ask questions about this app, explore features, and get simple explanations in plain English.
   </p>
   <div class="ai-note">
     No login • No private data • You decide when to use AI
@@ -258,8 +267,10 @@ if st.session_state.show_ai:
 
         st.divider()
 
+        # Render chat with Markdown so sections/bullets show cleanly
         for role, msg in st.session_state.chat[-10:]:
-            st.markdown(f"**{role}:** {msg}")
+            st.markdown(f"**{role}:**")
+            st.markdown(msg)
 
         user_q = st.text_input("Ask a question", placeholder="Type your question here…")
         if st.button("Send", type="primary", use_container_width=True) and user_q.strip():
@@ -299,10 +310,10 @@ with left:
         unsafe_allow_html=True,
     )
 
-    # New: description for AI Assistance before button
+    # Description before the Ask AI Assistant button
     st.markdown(
-        '<div class="ai-helper"><b>AI Assistance:</b> Ask questions anytime to learn more, explore features, '
-        'and get simple explanations in plain English.</div>',
+        '<div class="ai-helper"><b>AI Assistance:</b> We also have AI Assistance to help you learn more, '
+        'explore features, and get simple explanations in plain English.</div>',
         unsafe_allow_html=True,
     )
 
