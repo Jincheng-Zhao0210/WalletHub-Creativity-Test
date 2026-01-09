@@ -139,13 +139,96 @@ section.main {
 .ai-desc { font-size: 13px; color: #334155; line-height: 1.45; margin: 0; }
 .ai-highlight { color: #2563eb; font-weight: 900; }
 .ai-note { font-size: 12px; color: #64748b; margin-top: 8px; }
+
+/* --- End-page deals section (WalletHub-like) --- */
+.deals-wrap{
+  margin-top: 34px;
+  padding: 10px 0 6px 0;
+}
+.deals-kicker{
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: #0f172a;
+  font-weight: 800;
+  text-align:center;
+}
+.deals-title{
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1.03;
+  color: #0f172a;
+  text-align:center;
+  margin-top: 8px;
+}
+.deals-sub{
+  font-size: 15px;
+  color: #475569;
+  text-align:center;
+  max-width: 720px;
+  margin: 12px auto 0 auto;
+}
+.deals-grid{
+  max-width: 980px;
+  margin: 24px auto 0 auto;
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+@media (max-width: 900px){
+  .deals-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px){
+  .deals-grid{ grid-template-columns: 1fr; }
+}
+.deal-card{
+  background: #f3f5f9;
+  border: 1px solid #edf0f6;
+  border-radius: 22px;
+  padding: 18px 14px;
+  height: 150px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+}
+.deal-icon{
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: white;
+  border: 1px solid #e7eaf2;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+.deal-label{
+  font-size: 20px;
+  color: #0f172a;
+  font-weight: 500;
+}
+.deals-cta{
+  display:flex;
+  justify-content:center;
+  margin-top: 22px;
+}
+.wallethub-btn button{
+  background:#201535 !important;
+  color:white !important;
+  border-radius: 999px !important;
+  padding: 0.65rem 1.6rem !important;
+  font-weight: 700 !important;
+  border: none !important;
+}
 </style>
 """,
     unsafe_allow_html=True,
 )
 
 # --------------------------------------------------
-# AI function (reliable on Streamlit Cloud)
+# AI function
 # --------------------------------------------------
 APP_CONTEXT = """
 This is a public finance onboarding UI with these main sections:
@@ -199,8 +282,6 @@ def push_chat(q: str):
 # --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
-        # your AI image file in repo root:
-        # rename your generated image to ai_assistant.png and commit
         img_candidates = ["ai_assistant.png", "picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
@@ -269,7 +350,7 @@ st.markdown(
 )
 
 # --------------------------------------------------
-# Hero (WalletHub-like)
+# Hero
 # --------------------------------------------------
 left, right = st.columns([1.25, 1])
 with left:
@@ -365,5 +446,45 @@ section(
         ("Identity Monitoring", "Alerts for suspicious activity involving identity and accounts."),
     ],
 )
+
+# --------------------------------------------------
+# NEW: "Find the Best Deals" end page (like your screenshot)
+# --------------------------------------------------
+st.markdown('<div class="deals-wrap">', unsafe_allow_html=True)
+st.markdown('<div class="deals-kicker">SAVINGS OPPORTUNITIES</div>', unsafe_allow_html=True)
+st.markdown('<div class="deals-title">Find the Best Deals</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="deals-sub">People trust FinanceHub because of its user reviews, unbiased recommendations, and transparent rating logic designed to help you compare options confidently.</div>',
+    unsafe_allow_html=True
+)
+
+# 2x3 grid cards
+cards = [
+    ("💳", "Credit Cards"),
+    ("💰", "Personal Loans"),
+    ("🚗", "Car Insurance"),
+    ("🐷", "Savings Accounts"),
+    ("🏦", "Checking Accounts"),
+    ("📈", "CDs"),
+]
+
+st.markdown('<div class="deals-grid">', unsafe_allow_html=True)
+for icon, label in cards:
+    st.markdown(
+        f"""
+        <div class="deal-card">
+          <div class="deal-icon">{icon}</div>
+          <div class="deal-label">{label}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+st.markdown("</div>", unsafe_allow_html=True)
+
+# CTA button
+st.markdown('<div class="deals-cta wallethub-btn">', unsafe_allow_html=True)
+st.button("View All FinanceHub Awards")
+st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 st.caption("Demo UI + optional onboarding AI. Educational only. No login and no private user data.")
