@@ -19,7 +19,13 @@ if not api_key:
     st.stop()
 
 client = OpenAI(api_key=api_key)
-CHAT_MODEL = (st.secrets.get("OPENAI_CHAT_MODEL") if hasattr(st, "secrets") else None) or os.getenv("OPENAI_CHAT_MODEL", "gpt-5.2")
+
+# Model (keep it flexible)
+CHAT_MODEL = (
+    (st.secrets.get("OPENAI_CHAT_MODEL") if hasattr(st, "secrets") else None)
+    or os.getenv("OPENAI_CHAT_MODEL")
+    or "gpt-4o-mini"
+)
 
 # ----------------------------
 # Styling (simple, similar feel)
@@ -75,7 +81,7 @@ st.markdown(
     padding: 18px 18px;
     margin-top: 16px;
   }
-  .section-title { font-size: 44px; font-weight: 800; line-height:1.0; margin:0; }
+  .section-title { font-size: 44px; font-weight: 800; line-height:1.0; margin:0; white-space: pre-line; }
   .section-kicker { font-size: 13px; letter-spacing: 0.12em; opacity: 0.6; font-weight: 700; }
   .feature { margin-top: 10px; }
   .feature b { font-size: 16px; }
@@ -86,6 +92,55 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+# ----------------------------
+# Helper: call model (Chat Completions)
+# ----------------------------
+def ask_ai(user_question: str) -> str:
+    # Context: Only YOUR app's public sections (safe)
+    app_context = """
+This is a public finance onboarding UI with these main sections:
+- Budgeting & Spending: Budgeting Tool, Spending Tracker, Subscription Manager, WalletScore
+- Credit: Credit Scores & Reports, Credit Builder, Credit Report Monitoring, Credit Lock, Credit Improvement Plan, Debt Payoff Plan
+- Offers: Personalized Credit Card Offers, Pre-qualified Personal Loans, Savings Opportunities
+- Investments: Investment Monitoring, News Feed, Retirement Planning, Net Worth
+- Identity: Dark Web Monitoring, Identity Theft Insurance, Identity Monitoring
+
+Rules:
+- You cannot access any private user credit report or account.
+- If the user asks "why my score dropped", explain common reasons and offer optional high-level questions (utilization range, recent application yes/no, missed payment yes/no).
+- Provide clear “Where to click next” suggestions.
+- Keep answers concise, friendly, and beginner-friendly.
+"""
+
+    prompt = f"""You are an onboarding assistant for this finance app UI.
+Use only the provided app context to describe features/navigation.
+Do not claim access to private data.
+
+APP CONTEXT:
+{app_context}
+
+User question: {user_question}
+
+Answer with:
+1) Direct answer (2-6 sentences)
+2) 1-3 "Next clicks" suggestions (bullets)
+3) If it’s a score-drop question, add a short safe checklist (utilization / inquiry / payment / age / derogatory)
+"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a helpful, safe onboarding assistant for a finance app."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.4,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Sorry — I hit an error calling the model: {e}"
+
 
 # ----------------------------
 # Sidebar: AI Assistant
@@ -101,8 +156,10 @@ with st.sidebar:
     cols = st.columns(2)
     if cols[0].button("60-sec tour"):
         st.session_state.chat.append(("user", "Give me a 60-second tour of this app. Where should a new user start?"))
+        st.session_state.chat.append(("assistant", ask_ai("Give me a 60-second tour of this app. Where should a new user start?")))
     if cols[1].button("Why score drops?"):
         st.session_state.chat.append(("user", "Why can a credit score drop? Explain in plain English."))
+        st.session_state.chat.append(("assistant", ask_ai("Why can a credit score drop? Explain in plain English.")))
 
     st.divider()
 
@@ -116,43 +173,7 @@ with st.sidebar:
     user_q = st.text_input("Ask a question", placeholder="e.g., What is credit utilization?")
     if st.button("Send", type="primary", use_container_width=True) and user_q.strip():
         st.session_state.chat.append(("user", user_q.strip()))
-
-        # Context: Only YOUR app's public sections (safe)
-        app_context = """
-This is a public finance onboarding UI with these main sections:
-- Budgeting & Spending: Budgeting Tool, Spending Tracker, Subscription Manager, WalletScore
-- Credit: Credit Scores & Reports, Credit Builder, Credit Report Monitoring, Credit Lock, Credit Improvement Plan, Debt Payoff Plan
-- Offers: Personalized Credit Card Offers, Pre-qualified Personal Loans, Savings Opportunities
-- Investments: Investment Monitoring, News Feed, Retirement Planning, Net Worth
-- Identity: Dark Web Monitoring, Identity Theft Insurance, Identity Monitoring
-
-Rules:
-- You cannot access any private user credit report or account.
-- If user asks "why my score dropped", explain common reasons and offer optional high-level questions (utilization range, recent application yes/no, missed payment yes/no).
-- Provide clear “Where to click next” suggestions.
-- Keep answers concise, friendly, and beginner-friendly.
-"""
-
-        prompt = f"""You are an onboarding assistant for this finance app UI.
-Use only the provided app context to describe features/navigation.
-Do not claim access to private data.
-
-APP CONTEXT:
-{app_context}
-
-User question: {user_q}
-
-Answer with:
-1) Direct answer
-2) 1-3 "Next clicks" suggestions
-3) If it’s a score-drop question, add a short safe checklist (utilization / inquiry / payment / age / derogatory)
-"""
-
-        try:
-            resp = client.responses.create(model=CHAT_MODEL, input=prompt)
-            st.session_state.chat.append(("assistant", resp.output_text))
-        except Exception as e:
-            st.session_state.chat.append(("assistant", f"Sorry — I hit an error calling the model: {e}"))
+        st.session_state.chat.append(("assistant", ask_ai(user_q.strip())))
 
 # ----------------------------
 # Top bar (similar)
@@ -211,7 +232,7 @@ def section(kicker, title, features, footer_link="View all features →"):
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ----------------------------
-# Main important sections (from your screenshots)
+# Main important sections (simplified)
 # ----------------------------
 section(
     "BUDGETING & SPENDING",
