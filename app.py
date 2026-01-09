@@ -4,12 +4,12 @@ import streamlit as st
 from openai import OpenAI
 
 # --------------------------------------------------
-# Page Config
+# Page config
 # --------------------------------------------------
-st.set_page_config(page_title="FinanceHub + AI Guide", page_icon="💳", layout="wide")
+st.set_page_config(page_title="FinanceHub", page_icon="💳", layout="wide")
 
 # --------------------------------------------------
-# Session State
+# Session state
 # --------------------------------------------------
 if "show_ai" not in st.session_state:
     st.session_state.show_ai = False
@@ -17,7 +17,7 @@ if "chat" not in st.session_state:
     st.session_state.chat = []
 
 # --------------------------------------------------
-# OpenAI Setup
+# OpenAI config
 # --------------------------------------------------
 api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 if not api_key:
@@ -25,96 +25,129 @@ if not api_key:
     st.stop()
 
 client = OpenAI(api_key=api_key)
-
-# Choose model (you can override via Streamlit Secrets: OPENAI_CHAT_MODEL)
 MODEL = st.secrets.get("OPENAI_CHAT_MODEL", os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"))
 
 # --------------------------------------------------
-# Styling
+# WalletHub-like styling (font + color hierarchy)
 # --------------------------------------------------
 st.markdown(
     """
 <style>
-  .topbar {
-    background:#201535;
-    padding:14px 18px;
-    border-radius:12px;
-    color:white;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:18px;
-  }
-  .brand {font-weight:800;font-size:18px;display:flex;gap:10px;align-items:center;}
-  .badge {
-    width:26px;height:26px;border-radius:6px;
-    background:#2dd4bf;color:#0b1020;
-    display:flex;align-items:center;justify-content:center;
-    font-weight:900;
-  }
-  .nav {font-size:14px; opacity:.9; display:flex; gap:14px; align-items:center;}
-  .pill {background:#2f2350;padding:6px 12px;border-radius:999px}
+/* --- Page --- */
+section.main {
+  background: #f6f7fb;
+}
 
-  .hero {
-    padding:24px;
-    border-radius:18px;
-    background:linear-gradient(180deg,#ffffff,#f6f7fb);
-    border:1px solid #e5e7eb;
-  }
-  .hero-title {font-size:56px;font-weight:900;line-height:1;margin:0;}
-  .hero-sub {font-size:16px;color:#475569;max-width:560px;margin-top:10px}
-  .cta {margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
-  .small {font-size:12px;color:#64748b;margin-top:8px;}
+/* --- Top nav --- */
+.topbar {
+  background: #201535;
+  padding: 14px 18px;
+  border-radius: 12px;
+  color: white;
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  margin-bottom: 20px;
+}
+.brand { font-weight: 800; font-size: 16px; display:flex; gap:10px; align-items:center; }
+.brand-badge {
+  width: 26px; height: 26px; border-radius: 6px;
+  background: #2dd4bf; display:inline-flex; align-items:center; justify-content:center;
+  font-weight:900; color:#0b1020;
+}
+.nav { font-size: 13px; opacity: 0.95; display:flex; gap:14px; align-items:center; }
+.pill {
+  background:#2f2350; padding:7px 12px; border-radius: 999px; display:inline-block;
+}
 
-  .video-card {
-    background:linear-gradient(135deg,#6366f1,#3b82f6);
-    border-radius:18px;
-    height:210px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:white;
-    font-size:26px;
-    font-weight:800;
-    border:1px solid rgba(0,0,0,0.05);
-  }
+/* --- Hero --- */
+.hero-wrap {
+  padding: 8px 6px 6px 6px;
+}
+.hero-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 0.98;
+  color: #0f172a;
+  margin: 0;
+}
+.hero-sub {
+  font-size: 16px;
+  color: #475569;
+  margin-top: 14px;
+  max-width: 620px;
+}
+.hero-cta-row { margin-top: 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.note {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 10px;
+}
 
-  .section {
-    background:white;
-    border:1px solid #e5e7eb;
-    border-radius:18px;
-    padding:18px;
-    margin-top:16px;
-  }
-  .section-title {font-size:42px;font-weight:900;white-space:pre-line;margin:6px 0 0 0;}
-  .kicker {font-size:12px;letter-spacing:.12em;color:#64748b;font-weight:800}
-  .feature {margin-top:10px}
-  .feature b {font-size:16px}
-  .muted {color:#475569}
-  .link {color:#2563eb;font-weight:700;margin-top:12px}
+/* --- Video card --- */
+.video-card {
+  background: #5b77f4;
+  border-radius: 18px;
+  height: 240px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:white;
+  font-size: 26px;
+  font-weight: 800;
+  border: 1px solid rgba(0,0,0,0.05);
+}
 
-  /* AI card with multiple colors */
-  .ai-card {
-    background:linear-gradient(135deg,#eef2ff 0%, #f0fdf4 50%, #fff7ed 100%);
-    border:1px solid #e5e7eb;
-    border-radius:16px;
-    padding:14px;
-    margin-bottom:12px;
-  }
-  .ai-title {font-size:20px;font-weight:900;color:#0f172a;margin:0 0 6px 0;}
-  .ai-desc {font-size:13px;color:#334155;line-height:1.45;margin:0;}
-  .ai-highlight {color:#2563eb;font-weight:800;}
-  .ai-note {font-size:12px;color:#64748b;margin-top:8px;}
+/* --- Sections --- */
+.section-card {
+  background: white;
+  border: 1px solid #ececf3;
+  border-radius: 22px;
+  padding: 22px;
+  margin-top: 18px;
+}
+.section-kicker {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: #64748b;
+  font-weight: 800;
+}
+.section-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 54px;
+  font-weight: 700;
+  line-height: 1.02;
+  color: #0f172a;
+  margin: 8px 0 10px 0;
+  white-space: pre-line;
+}
+.feature { margin-top: 14px; }
+.feature b { font-size: 16px; font-weight: 700; color:#0f172a; }
+.feature .desc { margin-left: 18px; margin-top: 4px; color:#475569; font-size: 14px; }
+.linkish { color: #2563eb; font-weight: 700; margin-top: 14px; }
+
+/* --- AI sidebar card (multi-color) --- */
+.ai-card {
+  background: linear-gradient(135deg,#eef2ff 0%, #f0fdf4 50%, #fff7ed 100%);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.ai-title { font-size: 18px; font-weight: 900; color: #0f172a; margin: 0 0 6px 0; }
+.ai-desc { font-size: 13px; color: #334155; line-height: 1.45; margin: 0; }
+.ai-highlight { color: #2563eb; font-weight: 900; }
+.ai-note { font-size: 12px; color: #64748b; margin-top: 8px; }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
 # --------------------------------------------------
-# AI Logic
+# AI function (reliable on Streamlit Cloud)
 # --------------------------------------------------
-def ask_ai(user_question: str) -> str:
-    app_context = """
+APP_CONTEXT = """
 This is a public finance onboarding UI with these main sections:
 - Budgeting & Spending: Budgeting Tool, Spending Tracker, Subscription Manager, WalletScore
 - Credit: Credit Scores & Reports, Credit Builder, Credit Report Monitoring, Credit Lock, Credit Improvement Plan, Debt Payoff Plan
@@ -124,50 +157,51 @@ This is a public finance onboarding UI with these main sections:
 
 Rules:
 - You cannot access any private user credit report or account.
-- If the user asks "why my score dropped", explain common reasons and offer optional high-level questions (utilization range, recent application yes/no, missed payment yes/no).
+- If user asks "why my score dropped", explain common reasons and offer optional high-level questions.
 - Provide clear “Where to click next” suggestions.
-- Keep answers concise, friendly, and beginner-friendly.
+- Keep answers concise and beginner-friendly.
 """
-    prompt = f"""You are an onboarding assistant for this finance app UI.
-Use only the provided app context to describe features/navigation.
-Do not claim access to private data.
+
+def ask_ai(question: str) -> str:
+    prompt = f"""You are an onboarding assistant for a finance app UI.
+Use ONLY the provided app context to describe features/navigation.
+Do NOT claim access to private data.
 
 APP CONTEXT:
-{app_context}
+{APP_CONTEXT}
 
-User question: {user_question}
+User question: {question}
 
-Answer with:
+Answer format:
 1) Direct answer (2-6 sentences)
-2) 1-3 "Next clicks" suggestions (bullets)
-3) If it’s a score-drop question, add a short safe checklist (utilization / inquiry / payment / age / derogatory)
+2) Next clicks (1-3 bullets)
+3) If score-drop question: short checklist (utilization / inquiry / payment / age / derogatory)
 """
     try:
-        resp = client.chat.completions.create(
+        r = client.chat.completions.create(
             model=MODEL,
             messages=[
-                {"role": "system", "content": "You are a helpful, safe onboarding assistant for a finance app."},
+                {"role": "system", "content": "You are a helpful, safe onboarding assistant."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.4,
         )
-        return resp.choices[0].message.content.strip()
+        return r.choices[0].message.content.strip()
     except Exception as e:
         return f"Sorry — I hit an error calling the model: {e}"
-
 
 def push_chat(q: str):
     st.session_state.chat.append(("You", q))
     st.session_state.chat.append(("AI", ask_ai(q)))
 
-
 # --------------------------------------------------
-# Sidebar: AI Assistant (ONLY when activated)
+# Sidebar: AI Assistant (optional, button-activated)
 # --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
-        # Your AI image in repo root: picture.png (recommended)
-        img_candidates = ["picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
+        # your AI image file in repo root:
+        # rename your generated image to ai_assistant.png and commit
+        img_candidates = ["ai_assistant.png", "picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
             st.image(img_path, use_container_width=True)
@@ -176,10 +210,10 @@ if st.session_state.show_ai:
             """
 <div class="ai-card">
   <div class="ai-title">AI Assistant</div>
-  <div class="ai-desc">
-    Hi! I’m your <span class="ai-highlight">AI Assistant</span>.<br/>
+  <p class="ai-desc">
+    Hi! I am your <span class="ai-highlight">AI assistant</span>.<br/>
     You can ask me questions about this app, explore features, and get simple explanations in plain English.
-  </div>
+  </p>
   <div class="ai-note">
     No login • No private data • You decide when to use AI
   </div>
@@ -195,20 +229,17 @@ if st.session_state.show_ai:
         st.divider()
         st.caption("Example prompts (click to try):")
 
-        if st.button("60-sec tour", use_container_width=True):
+        c1, c2 = st.columns(2)
+        if c1.button("60-sec tour", use_container_width=True):
             push_chat("Give me a 60-second tour of this app. Where should a new user start?")
-        if st.button("Where should I start?", use_container_width=True):
-            push_chat("Where should a new user start, and what is the first best section to explore?")
-        if st.button("Why can a credit score drop?", use_container_width=True):
+        if c2.button("Score drop?", use_container_width=True):
             push_chat("Why can a credit score drop? Explain in plain English.")
-        if st.button("What is credit utilization?", use_container_width=True):
-            push_chat("What is credit utilization and why does it matter?")
-        if st.button("Help me find the right section", use_container_width=True):
+
+        if st.button("Find the right section", use_container_width=True):
             push_chat("I want to save money and improve my credit. Which sections should I use and what should I click next?")
 
         st.divider()
 
-        # Show recent chat
         for role, msg in st.session_state.chat[-10:]:
             st.markdown(f"**{role}:** {msg}")
 
@@ -217,12 +248,12 @@ if st.session_state.show_ai:
             push_chat(user_q.strip())
 
 # --------------------------------------------------
-# Top Bar
+# Top bar
 # --------------------------------------------------
 st.markdown(
     """
 <div class="topbar">
-  <div class="brand"><div class="badge">W</div> FinanceHub</div>
+  <div class="brand"><span class="brand-badge">W</span> FinanceHub</div>
   <div class="nav">
     <span>MyHub</span>
     <span>Credit Cards</span>
@@ -238,29 +269,24 @@ st.markdown(
 )
 
 # --------------------------------------------------
-# Hero Section
+# Hero (WalletHub-like)
 # --------------------------------------------------
-left, right = st.columns([1.2, 1])
+left, right = st.columns([1.25, 1])
 with left:
-    st.markdown('<div class="hero">', unsafe_allow_html=True)
+    st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
     st.markdown('<p class="hero-title">Supercharge<br/>Your Finances</p>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="hero-sub">A single place to learn, explore, and navigate key finance tools: budgeting, credit, offers, investments, and identity protection.</p>',
+        '<div class="hero-sub">FinanceHub helps you make the most of your money. '
+        'Strengthen your credit, budget better, track offers, monitor investments, and protect your identity — all in one place.</div>',
         unsafe_allow_html=True,
     )
-
-    st.markdown('<div class="cta">', unsafe_allow_html=True)
+    st.markdown('<div class="hero-cta-row">', unsafe_allow_html=True)
     st.button("Get Started for Free", type="primary")
-
-    ai_label = "Ask AI Assistant" if not st.session_state.show_ai else "AI Assistant Active"
-    if st.button(ai_label):
+    if st.button("Ask AI Assistant"):
         st.session_state.show_ai = True
         st.rerun()
-
-    st.markdown(
-        '<div class="small">AI is optional: it explains features and suggests where to click next (no login, no private data).</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('<div class="note">AI is optional: education + navigation (no login, no private data).</div>', unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
@@ -268,19 +294,22 @@ with right:
     st.caption("Placeholder for an intro video (optional).")
 
 # --------------------------------------------------
-# Section Builder
+# Section builder
 # --------------------------------------------------
-def section(kicker, title, features, footer_link="View all features →"):
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown(f'<div class="kicker">{kicker}</div>', unsafe_allow_html=True)
+def section(kicker: str, title: str, features: list, footer: str = "View all features →"):
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-kicker">{kicker}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
     for name, desc in features:
-        st.markdown(f'<div class="feature"><b>＋ {name}</b><div class="muted">{desc}</div></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="link">{footer_link}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="feature"><b>＋ {name}</b><div class="desc">{desc}</div></div>',
+            unsafe_allow_html=True,
+        )
+    st.markdown(f'<div class="linkish">{footer}</div>', unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --------------------------------------------------
-# Main Sections (important only)
+# Main sections (important only)
 # --------------------------------------------------
 section(
     "BUDGETING & SPENDING",
@@ -288,7 +317,7 @@ section(
     [
         ("Budgeting Tool", "Create a budget and take control of your spending."),
         ("Spending Tracker", "Monitor spending habits and identify potential savings."),
-        ("Subscription Manager", "Manage subscriptions in one place and spot the ones you no longer need."),
+        ("Subscription Manager", "Effortlessly manage subscriptions and cancel what you no longer need."),
         ("WalletScore", "A simple score to summarize your financial habits (high-level)."),
     ],
 )
@@ -310,7 +339,7 @@ section(
     "OFFERS",
     "Personalized offers\nfor your credit",
     [
-        ("Personalized Credit Card Offers", "Find cards that fit common goals like cash back or low APR."),
+        ("Personalized Credit Card Offers", "Find cards that fit goals like cash back or low APR."),
         ("Pre-qualified Personal Loans", "Explore loan options without heavy searching."),
         ("Savings Opportunities", "Discover ways to lower interest, fees, or recurring costs."),
     ],
@@ -322,7 +351,7 @@ section(
     [
         ("Investment Monitoring", "Track investment performance and changes over time."),
         ("News Feed", "A focused feed that highlights what matters."),
-        ("Retirement Planning", "Plan savings targets based on timeline and lifestyle goals."),
+        ("Retirement Planning", "Plan targets based on timeline and lifestyle goals."),
         ("Net Worth", "Track assets and liabilities over time."),
     ],
 )
@@ -337,4 +366,4 @@ section(
     ],
 )
 
-st.caption("Demo UI + optional onboarding AI. No login and no private user data.")
+st.caption("Demo UI + optional onboarding AI. Educational only. No login and no private user data.")
