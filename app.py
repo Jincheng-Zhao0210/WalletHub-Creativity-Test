@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import streamlit as st
 from openai import OpenAI
 
@@ -10,6 +11,8 @@ st.set_page_config(page_title="FinanceHub + AI Guide", page_icon="💳", layout=
 # AI Assistant toggle state (OFF by default)
 if "show_ai" not in st.session_state:
     st.session_state.show_ai = False
+if "chat" not in st.session_state:
+    st.session_state.chat = []
 
 # Read key safely (Streamlit secrets first, then env)
 api_key = None
@@ -54,9 +57,8 @@ st.markdown(
     font-weight:800; color:#0b1020;
   }
   .nav { font-size: 14px; opacity: 0.9; display:flex; gap:16px; align-items:center; }
-  .pill {
-    background:#2f2350; padding:7px 12px; border-radius: 999px; display:inline-block;
-  }
+  .pill { background:#2f2350; padding:7px 12px; border-radius: 999px; display:inline-block; }
+
   .hero {
     padding: 22px 22px;
     border-radius: 18px;
@@ -66,6 +68,7 @@ st.markdown(
   .hero-title { font-size: 56px; font-weight: 800; line-height: 1.0; margin:0; }
   .hero-sub { font-size: 16px; opacity: 0.85; margin-top: 10px; max-width: 560px;}
   .cta { margin-top: 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
   .video-card {
     background: #5b77f4;
     border-radius: 18px;
@@ -78,6 +81,7 @@ st.markdown(
     font-weight: 700;
     border: 1px solid rgba(0,0,0,0.05);
   }
+
   .section-card {
     background: white;
     border: 1px solid #ececf3;
@@ -91,7 +95,12 @@ st.markdown(
   .feature b { font-size: 16px; }
   .muted { opacity: 0.75; }
   .linkish { color: #2563eb; font-weight: 600; }
-  .small { font-size: 13px; opacity: 0.75;}
+  .small { font-size: 13px; opacity: 0.75; }
+
+  .ai-title { font-weight: 800; font-size: 20px; margin-top: 6px; }
+  .ai-desc { font-size: 13px; opacity: 0.82; line-height: 1.35; }
+  .ai-sub { font-size: 12px; opacity: 0.72; }
+  .ai-chip { font-size: 12px; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -144,42 +153,68 @@ Answer with:
     except Exception as e:
         return f"Sorry — I hit an error calling the model: {e}"
 
+
+def push_chat(q: str):
+    st.session_state.chat.append(("user", q))
+    st.session_state.chat.append(("assistant", ask_ai(q)))
+
+
 # ----------------------------
 # Sidebar: AI Assistant (ONLY when activated)
 # ----------------------------
 if st.session_state.show_ai:
     with st.sidebar:
-        st.markdown("## 🤖 AI Assistant")
-        st.caption("Optional onboarding guide (no login, no private data).")
+        # AI picture (use your own image file named "picture.*")
+        # Recommended: picture.png (place in repo root)
+        img_candidates = ["picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
+        img_path = next((p for p in img_candidates if Path(p).exists()), None)
+        if img_path:
+            st.image(img_path, use_container_width=True)
 
-        if "chat" not in st.session_state:
-            st.session_state.chat = []
+        st.markdown('<div class="ai-title">AI Assistant</div>', unsafe_allow_html=True)
+        st.markdown(
+            """
+<div class="ai-desc">
+The AI Assistant is an optional onboarding feature designed to help new users understand the platform quickly and confidently.
+It explains key features in plain language, answers common financial questions, and guides users to the right sections —
+without accessing any private user data or accounts.
+</div>
+<div class="ai-sub" style="margin-top:6px;">
+Focus: education, navigation, and discovery (not personalized financial advice).
+</div>
+""",
+            unsafe_allow_html=True,
+        )
 
         # Close button
-        if st.button("❌ Close AI Assistant", use_container_width=True):
+        if st.button("Close AI Assistant", use_container_width=True):
             st.session_state.show_ai = False
             st.rerun()
 
-        cols = st.columns(2)
-        if cols[0].button("60-sec tour", use_container_width=True):
-            q = "Give me a 60-second tour of this app. Where should a new user start?"
-            st.session_state.chat.append(("user", q))
-            st.session_state.chat.append(("assistant", ask_ai(q)))
+        st.divider()
+        st.caption("Example prompts (click to try):")
 
-        if cols[1].button("Why score drops?", use_container_width=True):
-            q = "Why can a credit score drop? Explain in plain English."
-            st.session_state.chat.append(("user", q))
-            st.session_state.chat.append(("assistant", ask_ai(q)))
+        # Example prompt buttons (including “60-sec tour”)
+        if st.button("60-sec tour", use_container_width=True):
+            push_chat("Give me a 60-second tour of this app. Where should a new user start?")
+        if st.button("Where should I start?", use_container_width=True):
+            push_chat("Where should a new user start, and what is the first best section to explore?")
+        if st.button("Why can a credit score drop?", use_container_width=True):
+            push_chat("Why can a credit score drop? Explain in plain English.")
+        if st.button("What is credit utilization?", use_container_width=True):
+            push_chat("What is credit utilization and why does it matter?")
+        if st.button("Help me find the right section", use_container_width=True):
+            push_chat("I want to save money and improve my credit. Which sections should I use and what should I click next?")
 
         st.divider()
 
+        # Show recent chat
         for role, msg in st.session_state.chat[-10:]:
             st.markdown(f"**{'You' if role == 'user' else 'AI'}:** {msg}")
 
-        user_q = st.text_input("Ask a question", placeholder="e.g., What is credit utilization?")
+        user_q = st.text_input("Ask a question", placeholder="Type your question here…")
         if st.button("Send", type="primary", use_container_width=True) and user_q.strip():
-            st.session_state.chat.append(("user", user_q.strip()))
-            st.session_state.chat.append(("assistant", ask_ai(user_q.strip())))
+            push_chat(user_q.strip())
 
 # ----------------------------
 # Top bar
@@ -217,13 +252,13 @@ with left:
     st.markdown('<div class="cta">', unsafe_allow_html=True)
     st.button("Get Started for Free", type="primary")
 
-    ai_label = "✨ Ask AI Assistant" if not st.session_state.show_ai else "🤖 AI Assistant Active"
+    ai_label = "Ask AI Assistant" if not st.session_state.show_ai else "AI Assistant Active"
     if st.button(ai_label):
         st.session_state.show_ai = True
         st.rerun()
 
     st.markdown(
-        '<p class="small">AI is an optional extension: it explains features and suggests where to click next (no login, no private data).</p>',
+        '<p class="small">AI is optional: it explains features and suggests where to click next (no login, no private data).</p>',
         unsafe_allow_html=True,
     )
     st.markdown("</div></div>", unsafe_allow_html=True)
@@ -306,3 +341,4 @@ section(
 )
 
 st.caption("Demo UI + optional onboarding AI. No login and no private user data.")
+
