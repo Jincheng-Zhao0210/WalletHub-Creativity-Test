@@ -28,199 +28,109 @@ client = OpenAI(api_key=api_key)
 MODEL = st.secrets.get("OPENAI_CHAT_MODEL", os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"))
 
 # --------------------------------------------------
-# WalletHub-like styling (font + color hierarchy)
+# Styling (WalletHub-like typography + colors)
 # --------------------------------------------------
 st.markdown(
     """
 <style>
 /* --- Page --- */
-section.main {
-  background: #f6f7fb;
-}
+section.main { background: #f6f7fb; }
 
 /* --- Top nav --- */
-.topbar {
-  background: #201535;
-  padding: 14px 18px;
-  border-radius: 12px;
-  color: white;
-  display:flex;
-  justify-content: space-between;
-  align-items:center;
-  margin-bottom: 20px;
+.topbar{
+  background:#201535; padding:14px 18px; border-radius:12px; color:white;
+  display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;
 }
-.brand { font-weight: 800; font-size: 16px; display:flex; gap:10px; align-items:center; }
-.brand-badge {
-  width: 26px; height: 26px; border-radius: 6px;
-  background: #2dd4bf; display:inline-flex; align-items:center; justify-content:center;
+.brand{ font-weight:800; font-size:16px; display:flex; gap:10px; align-items:center; }
+.brand-badge{
+  width:26px; height:26px; border-radius:6px; background:#2dd4bf;
+  display:inline-flex; align-items:center; justify-content:center;
   font-weight:900; color:#0b1020;
 }
-.nav { font-size: 13px; opacity: 0.95; display:flex; gap:14px; align-items:center; }
-.pill {
-  background:#2f2350; padding:7px 12px; border-radius: 999px; display:inline-block;
-}
+.nav{ font-size:13px; opacity:.95; display:flex; gap:14px; align-items:center; }
+.pill{ background:#2f2350; padding:7px 12px; border-radius:999px; display:inline-block; }
 
 /* --- Hero --- */
-.hero-wrap {
-  padding: 8px 6px 6px 6px;
+.hero-wrap{ padding:8px 6px 6px 6px; }
+.hero-title{
+  font-family:Georgia,"Times New Roman",serif; font-size:72px; font-weight:700;
+  line-height:.98; color:#0f172a; margin:0;
 }
-.hero-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 72px;
-  font-weight: 700;
-  line-height: 0.98;
-  color: #0f172a;
-  margin: 0;
-}
-.hero-sub {
-  font-size: 16px;
-  color: #475569;
-  margin-top: 14px;
-  max-width: 620px;
-}
-.hero-cta-row { margin-top: 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-.note {
-  font-size: 12px;
-  color: #64748b;
-  margin-top: 10px;
-}
+.hero-sub{ font-size:16px; color:#475569; margin-top:14px; max-width:620px; }
+.hero-cta-row{ margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.note{ font-size:12px; color:#64748b; margin-top:10px; }
 
 /* --- Video card --- */
-.video-card {
-  background: #5b77f4;
-  border-radius: 18px;
-  height: 240px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:white;
-  font-size: 26px;
-  font-weight: 800;
-  border: 1px solid rgba(0,0,0,0.05);
+.video-card{
+  background:#5b77f4; border-radius:18px; height:240px;
+  display:flex; align-items:center; justify-content:center;
+  color:white; font-size:26px; font-weight:800;
+  border:1px solid rgba(0,0,0,.05);
 }
 
 /* --- Sections --- */
-.section-card {
-  background: white;
-  border: 1px solid #ececf3;
-  border-radius: 22px;
-  padding: 22px;
-  margin-top: 18px;
+.section-card{
+  background:white; border:1px solid #ececf3; border-radius:22px;
+  padding:22px; margin-top:18px;
 }
-.section-kicker {
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  color: #64748b;
-  font-weight: 800;
+.section-kicker{
+  font-size:12px; letter-spacing:.14em; color:#64748b; font-weight:800;
 }
-.section-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 54px;
-  font-weight: 700;
-  line-height: 1.02;
-  color: #0f172a;
-  margin: 8px 0 10px 0;
-  white-space: pre-line;
+.section-title{
+  font-family:Georgia,"Times New Roman",serif; font-size:54px; font-weight:700;
+  line-height:1.02; color:#0f172a; margin:8px 0 10px 0; white-space:pre-line;
 }
-.feature { margin-top: 14px; }
-.feature b { font-size: 16px; font-weight: 700; color:#0f172a; }
-.feature .desc { margin-left: 18px; margin-top: 4px; color:#475569; font-size: 14px; }
-.linkish { color: #2563eb; font-weight: 700; margin-top: 14px; }
+.feature{ margin-top:14px; }
+.feature b{ font-size:16px; font-weight:700; color:#0f172a; }
+.feature .desc{ margin-left:18px; margin-top:4px; color:#475569; font-size:14px; }
+.linkish{ color:#2563eb; font-weight:700; margin-top:14px; }
 
 /* --- AI sidebar card (multi-color) --- */
-.ai-card {
-  background: linear-gradient(135deg,#eef2ff 0%, #f0fdf4 50%, #fff7ed 100%);
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 14px;
-  margin-bottom: 12px;
+.ai-card{
+  background:linear-gradient(135deg,#eef2ff 0%, #f0fdf4 50%, #fff7ed 100%);
+  border:1px solid #e5e7eb; border-radius:16px; padding:14px; margin-bottom:12px;
 }
-.ai-title { font-size: 18px; font-weight: 900; color: #0f172a; margin: 0 0 6px 0; }
-.ai-desc { font-size: 13px; color: #334155; line-height: 1.45; margin: 0; }
-.ai-highlight { color: #2563eb; font-weight: 900; }
-.ai-note { font-size: 12px; color: #64748b; margin-top: 8px; }
+.ai-title{ font-size:18px; font-weight:900; color:#0f172a; margin:0 0 6px 0; }
+.ai-desc{ font-size:13px; color:#334155; line-height:1.45; margin:0; }
+.ai-highlight{ color:#2563eb; font-weight:900; }
+.ai-note{ font-size:12px; color:#64748b; margin-top:8px; }
 
 /* --- End-page deals section (WalletHub-like) --- */
-.deals-wrap{
-  margin-top: 34px;
-  padding: 10px 0 6px 0;
-}
+.deals-wrap{ margin-top:34px; padding:10px 0 6px 0; }
 .deals-kicker{
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  color: #0f172a;
-  font-weight: 800;
-  text-align:center;
+  font-size:12px; letter-spacing:.14em; color:#0f172a; font-weight:800; text-align:center;
 }
 .deals-title{
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 64px;
-  font-weight: 700;
-  line-height: 1.03;
-  color: #0f172a;
-  text-align:center;
-  margin-top: 8px;
+  font-family:Georgia,"Times New Roman",serif; font-size:64px; font-weight:700;
+  line-height:1.03; color:#0f172a; text-align:center; margin-top:8px;
 }
 .deals-sub{
-  font-size: 15px;
-  color: #475569;
-  text-align:center;
-  max-width: 720px;
-  margin: 12px auto 0 auto;
+  font-size:15px; color:#475569; text-align:center;
+  max-width:720px; margin:12px auto 0 auto;
 }
 .deals-grid{
-  max-width: 980px;
-  margin: 24px auto 0 auto;
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  max-width:980px; margin:24px auto 0 auto;
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:18px;
 }
-@media (max-width: 900px){
-  .deals-grid{ grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 600px){
-  .deals-grid{ grid-template-columns: 1fr; }
-}
+@media (max-width:900px){ .deals-grid{ grid-template-columns:repeat(2, 1fr); } }
+@media (max-width:600px){ .deals-grid{ grid-template-columns:1fr; } }
 .deal-card{
-  background: #f3f5f9;
-  border: 1px solid #edf0f6;
-  border-radius: 22px;
-  padding: 18px 14px;
-  height: 150px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
+  background:#f3f5f9; border:1px solid #edf0f6; border-radius:22px;
+  padding:18px 14px; height:150px;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
 }
 .deal-icon{
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
-  background: white;
-  border: 1px solid #e7eaf2;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size: 28px;
-  margin-bottom: 10px;
+  width:54px; height:54px; border-radius:18px; background:white;
+  border:1px solid #e7eaf2;
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; margin-bottom:10px;
 }
-.deal-label{
-  font-size: 20px;
-  color: #0f172a;
-  font-weight: 500;
-}
-.deals-cta{
-  display:flex;
-  justify-content:center;
-  margin-top: 22px;
-}
+.deal-label{ font-size:20px; color:#0f172a; font-weight:500; }
+.deals-cta{ display:flex; justify-content:center; margin-top:22px; }
 .wallethub-btn button{
-  background:#201535 !important;
-  color:white !important;
-  border-radius: 999px !important;
-  padding: 0.65rem 1.6rem !important;
-  font-weight: 700 !important;
-  border: none !important;
+  background:#201535 !important; color:white !important;
+  border-radius:999px !important; padding:0.65rem 1.6rem !important;
+  font-weight:700 !important; border:none !important;
 }
 </style>
 """,
@@ -228,60 +138,57 @@ section.main {
 )
 
 # --------------------------------------------------
-# AI function
+# AI (Natural, no rigid format, no forced "next clicks")
 # --------------------------------------------------
-APP_CONTEXT = """
-This is a public finance onboarding UI with these main sections:
-- Budgeting & Spending: Budgeting Tool, Spending Tracker, Subscription Manager, WalletScore
-- Credit: Credit Scores & Reports, Credit Builder, Credit Report Monitoring, Credit Lock, Credit Improvement Plan, Debt Payoff Plan
-- Offers: Personalized Credit Card Offers, Pre-qualified Personal Loans, Savings Opportunities
-- Investments: Investment Monitoring, News Feed, Retirement Planning, Net Worth
-- Identity: Dark Web Monitoring, Identity Theft Insurance, Identity Monitoring
-
-Rules:
-- You cannot access any private user credit report or account.
-- If user asks "why my score dropped", explain common reasons and offer optional high-level questions.
-- Provide clear “Where to click next” suggestions.
-- Keep answers concise and beginner-friendly.
-"""
-
 def ask_ai(question: str) -> str:
-    prompt = f"""You are an onboarding assistant for a finance app UI.
-Use ONLY the provided app context to describe features/navigation.
-Do NOT claim access to private data.
+    prompt = f"""
+You are a friendly AI onboarding assistant for a finance app UI.
 
-APP CONTEXT:
-{APP_CONTEXT}
+Your role:
+- Help users understand what this app offers
+- Explain financial concepts in plain, simple English
+- Gently guide users without giving rigid steps
+- Never claim access to personal or private data
 
-User question: {question}
+Important rules:
+- Do NOT use fixed formats, numbered lists, or checklists unless the user asks for them
+- Do NOT give compliance-style or scripted answers
+- Keep the tone natural, supportive, and conversational
+- If helpful, casually mention where in the app a feature lives (e.g., “Credit section”)
+- If the question is vague, ask ONE short clarifying question
 
-Answer format:
-1) Direct answer (2-6 sentences)
-2) Next clicks (1-3 bullets)
-3) If score-drop question: short checklist (utilization / inquiry / payment / age / derogatory)
+Context:
+This app includes budgeting, credit education, offers comparison, investments tracking, and identity protection.
+It is for learning and navigation only (no login, no private data).
+
+User question:
+{question}
+
+Respond naturally, like a helpful product guide.
 """
     try:
         r = client.chat.completions.create(
             model=MODEL,
             messages=[
-                {"role": "system", "content": "You are a helpful, safe onboarding assistant."},
+                {"role": "system", "content": "You are a helpful, calm onboarding assistant."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.4,
+            temperature=0.6,
         )
         return r.choices[0].message.content.strip()
-    except Exception as e:
-        return f"Sorry — I hit an error calling the model: {e}"
+    except Exception:
+        return "Sorry — I ran into a temporary issue. Please try again."
 
 def push_chat(q: str):
     st.session_state.chat.append(("You", q))
     st.session_state.chat.append(("AI", ask_ai(q)))
 
 # --------------------------------------------------
-# Sidebar: AI Assistant (optional, button-activated)
+# Sidebar: AI Assistant (button-activated)
 # --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
+        # Use your picture (no robot emoji)
         img_candidates = ["ai_assistant.png", "picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
@@ -313,11 +220,11 @@ if st.session_state.show_ai:
         c1, c2 = st.columns(2)
         if c1.button("60-sec tour", use_container_width=True):
             push_chat("Give me a 60-second tour of this app. Where should a new user start?")
-        if c2.button("Score drop?", use_container_width=True):
-            push_chat("Why can a credit score drop? Explain in plain English.")
+        if c2.button("Where should I start?", use_container_width=True):
+            push_chat("Where should a new user start?")
 
-        if st.button("Find the right section", use_container_width=True):
-            push_chat("I want to save money and improve my credit. Which sections should I use and what should I click next?")
+        if st.button("Explain credit score", use_container_width=True):
+            push_chat("Explain what a credit score is in simple English.")
 
         st.divider()
 
@@ -390,7 +297,7 @@ def section(kicker: str, title: str, features: list, footer: str = "View all fea
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --------------------------------------------------
-# Main sections (important only)
+# Main sections
 # --------------------------------------------------
 section(
     "BUDGETING & SPENDING",
@@ -448,17 +355,17 @@ section(
 )
 
 # --------------------------------------------------
-# NEW: "Find the Best Deals" end page (like your screenshot)
+# End page: "Find the Best Deals"
 # --------------------------------------------------
 st.markdown('<div class="deals-wrap">', unsafe_allow_html=True)
 st.markdown('<div class="deals-kicker">SAVINGS OPPORTUNITIES</div>', unsafe_allow_html=True)
 st.markdown('<div class="deals-title">Find the Best Deals</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="deals-sub">People trust FinanceHub because of its user reviews, unbiased recommendations, and transparent rating logic designed to help you compare options confidently.</div>',
+    '<div class="deals-sub">People trust FinanceHub because of its user reviews, unbiased recommendations, '
+    'and transparent rating logic designed to help you compare options confidently.</div>',
     unsafe_allow_html=True
 )
 
-# 2x3 grid cards
 cards = [
     ("💳", "Credit Cards"),
     ("💰", "Personal Loans"),
@@ -481,7 +388,6 @@ for icon, label in cards:
     )
 st.markdown("</div>", unsafe_allow_html=True)
 
-# CTA button
 st.markdown('<div class="deals-cta wallethub-btn">', unsafe_allow_html=True)
 st.button("View All FinanceHub Awards")
 st.markdown("</div>", unsafe_allow_html=True)
