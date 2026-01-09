@@ -3,111 +3,116 @@ from pathlib import Path
 import streamlit as st
 from openai import OpenAI
 
-# ----------------------------
-# Config
-# ----------------------------
+# --------------------------------------------------
+# Page Config
+# --------------------------------------------------
 st.set_page_config(page_title="FinanceHub + AI Guide", page_icon="💳", layout="wide")
 
-# AI Assistant toggle state (OFF by default)
+# --------------------------------------------------
+# Session State
+# --------------------------------------------------
 if "show_ai" not in st.session_state:
     st.session_state.show_ai = False
 if "chat" not in st.session_state:
     st.session_state.chat = []
 
-# Read key safely (Streamlit secrets first, then env)
-api_key = None
-if hasattr(st, "secrets") and "OPENAI_API_KEY" in st.secrets:
-    api_key = st.secrets["OPENAI_API_KEY"]
-else:
-    api_key = os.getenv("OPENAI_API_KEY")
-
+# --------------------------------------------------
+# OpenAI Setup
+# --------------------------------------------------
+api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 if not api_key:
-    st.error("Missing OPENAI_API_KEY. Add it to Streamlit Secrets or your environment variables.")
+    st.error("Missing OPENAI_API_KEY. Add it in Streamlit Secrets.")
     st.stop()
 
 client = OpenAI(api_key=api_key)
 
-# Model (safe default for demos)
-CHAT_MODEL = (
-    (st.secrets.get("OPENAI_CHAT_MODEL") if hasattr(st, "secrets") else None)
-    or os.getenv("OPENAI_CHAT_MODEL")
-    or "gpt-4o-mini"
-)
+# Choose model (you can override via Streamlit Secrets: OPENAI_CHAT_MODEL)
+MODEL = st.secrets.get("OPENAI_CHAT_MODEL", os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"))
 
-# ----------------------------
+# --------------------------------------------------
 # Styling
-# ----------------------------
+# --------------------------------------------------
 st.markdown(
     """
 <style>
   .topbar {
-    background: #201535;
-    padding: 14px 18px;
-    border-radius: 12px;
-    color: white;
+    background:#201535;
+    padding:14px 18px;
+    border-radius:12px;
+    color:white;
     display:flex;
-    justify-content: space-between;
+    justify-content:space-between;
     align-items:center;
-    margin-bottom: 18px;
+    margin-bottom:18px;
   }
-  .brand { font-weight: 700; font-size: 18px; display:flex; gap:10px; align-items:center; }
-  .brand-badge {
-    width: 26px; height: 26px; border-radius: 6px;
-    background: #2dd4bf; display:inline-flex; align-items:center; justify-content:center;
-    font-weight:800; color:#0b1020;
+  .brand {font-weight:800;font-size:18px;display:flex;gap:10px;align-items:center;}
+  .badge {
+    width:26px;height:26px;border-radius:6px;
+    background:#2dd4bf;color:#0b1020;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:900;
   }
-  .nav { font-size: 14px; opacity: 0.9; display:flex; gap:16px; align-items:center; }
-  .pill { background:#2f2350; padding:7px 12px; border-radius: 999px; display:inline-block; }
+  .nav {font-size:14px; opacity:.9; display:flex; gap:14px; align-items:center;}
+  .pill {background:#2f2350;padding:6px 12px;border-radius:999px}
 
   .hero {
-    padding: 22px 22px;
-    border-radius: 18px;
-    background: linear-gradient(180deg, #ffffff 0%, #f7f7fb 100%);
-    border: 1px solid #ececf3;
+    padding:24px;
+    border-radius:18px;
+    background:linear-gradient(180deg,#ffffff,#f6f7fb);
+    border:1px solid #e5e7eb;
   }
-  .hero-title { font-size: 56px; font-weight: 800; line-height: 1.0; margin:0; }
-  .hero-sub { font-size: 16px; opacity: 0.85; margin-top: 10px; max-width: 560px;}
-  .cta { margin-top: 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .hero-title {font-size:56px;font-weight:900;line-height:1;margin:0;}
+  .hero-sub {font-size:16px;color:#475569;max-width:560px;margin-top:10px}
+  .cta {margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  .small {font-size:12px;color:#64748b;margin-top:8px;}
 
   .video-card {
-    background: #5b77f4;
-    border-radius: 18px;
-    height: 210px;
+    background:linear-gradient(135deg,#6366f1,#3b82f6);
+    border-radius:18px;
+    height:210px;
     display:flex;
     align-items:center;
     justify-content:center;
     color:white;
-    font-size: 26px;
-    font-weight: 700;
-    border: 1px solid rgba(0,0,0,0.05);
+    font-size:26px;
+    font-weight:800;
+    border:1px solid rgba(0,0,0,0.05);
   }
 
-  .section-card {
-    background: white;
-    border: 1px solid #ececf3;
-    border-radius: 18px;
-    padding: 18px 18px;
-    margin-top: 16px;
+  .section {
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:18px;
+    padding:18px;
+    margin-top:16px;
   }
-  .section-title { font-size: 44px; font-weight: 800; line-height:1.0; margin:0; white-space: pre-line; }
-  .section-kicker { font-size: 13px; letter-spacing: 0.12em; opacity: 0.6; font-weight: 700; }
-  .feature { margin-top: 10px; }
-  .feature b { font-size: 16px; }
-  .muted { opacity: 0.75; }
-  .linkish { color: #2563eb; font-weight: 600; }
-  .small { font-size: 13px; opacity: 0.75; }
+  .section-title {font-size:42px;font-weight:900;white-space:pre-line;margin:6px 0 0 0;}
+  .kicker {font-size:12px;letter-spacing:.12em;color:#64748b;font-weight:800}
+  .feature {margin-top:10px}
+  .feature b {font-size:16px}
+  .muted {color:#475569}
+  .link {color:#2563eb;font-weight:700;margin-top:12px}
 
-  .ai-title { font-weight: 800; font-size: 20px; margin-top: 6px; }
-  .ai-desc { font-size: 13px; opacity: 0.82; line-height: 1.35; }
-  .ai-sub { font-size: 12px; opacity: 0.72; }
+  /* AI card with multiple colors */
+  .ai-card {
+    background:linear-gradient(135deg,#eef2ff 0%, #f0fdf4 50%, #fff7ed 100%);
+    border:1px solid #e5e7eb;
+    border-radius:16px;
+    padding:14px;
+    margin-bottom:12px;
+  }
+  .ai-title {font-size:20px;font-weight:900;color:#0f172a;margin:0 0 6px 0;}
+  .ai-desc {font-size:13px;color:#334155;line-height:1.45;margin:0;}
+  .ai-highlight {color:#2563eb;font-weight:800;}
+  .ai-note {font-size:12px;color:#64748b;margin-top:8px;}
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# ----------------------------
-# Helper: call model (Chat Completions)
-# ----------------------------
+# --------------------------------------------------
+# AI Logic
+# --------------------------------------------------
 def ask_ai(user_question: str) -> str:
     app_context = """
 This is a public finance onboarding UI with these main sections:
@@ -123,7 +128,6 @@ Rules:
 - Provide clear “Where to click next” suggestions.
 - Keep answers concise, friendly, and beginner-friendly.
 """
-
     prompt = f"""You are an onboarding assistant for this finance app UI.
 Use only the provided app context to describe features/navigation.
 Do not claim access to private data.
@@ -138,10 +142,9 @@ Answer with:
 2) 1-3 "Next clicks" suggestions (bullets)
 3) If it’s a score-drop question, add a short safe checklist (utilization / inquiry / payment / age / derogatory)
 """
-
     try:
         resp = client.chat.completions.create(
-            model=CHAT_MODEL,
+            model=MODEL,
             messages=[
                 {"role": "system", "content": "You are a helpful, safe onboarding assistant for a finance app."},
                 {"role": "user", "content": prompt},
@@ -152,31 +155,34 @@ Answer with:
     except Exception as e:
         return f"Sorry — I hit an error calling the model: {e}"
 
-def push_chat(q: str):
-    st.session_state.chat.append(("user", q))
-    st.session_state.chat.append(("assistant", ask_ai(q)))
 
-# ----------------------------
+def push_chat(q: str):
+    st.session_state.chat.append(("You", q))
+    st.session_state.chat.append(("AI", ask_ai(q)))
+
+
+# --------------------------------------------------
 # Sidebar: AI Assistant (ONLY when activated)
-# ----------------------------
+# --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
-        # Use your AI picture in repo root: picture.png
+        # Your AI image in repo root: picture.png (recommended)
         img_candidates = ["picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
             st.image(img_path, use_container_width=True)
 
-        st.markdown('<div class="ai-title">AI Assistant</div>', unsafe_allow_html=True)
         st.markdown(
             """
-<div class="ai-desc">
-The AI Assistant is an optional onboarding feature designed to help new users understand the platform quickly and confidently.
-It explains key features in plain language, answers common financial questions, and guides users to the right sections —
-without accessing any private user data or accounts.
-</div>
-<div class="ai-sub" style="margin-top:6px;">
-Focus: education, navigation, and discovery (not personalized financial advice).
+<div class="ai-card">
+  <div class="ai-title">AI Assistant</div>
+  <div class="ai-desc">
+    Hi! I’m your <span class="ai-highlight">AI Assistant</span>.<br/>
+    You can ask me questions about this app, explore features, and get simple explanations in plain English.
+  </div>
+  <div class="ai-note">
+    No login • No private data • You decide when to use AI
+  </div>
 </div>
 """,
             unsafe_allow_html=True,
@@ -202,20 +208,21 @@ Focus: education, navigation, and discovery (not personalized financial advice).
 
         st.divider()
 
+        # Show recent chat
         for role, msg in st.session_state.chat[-10:]:
-            st.markdown(f"**{'You' if role == 'user' else 'AI'}:** {msg}")
+            st.markdown(f"**{role}:** {msg}")
 
         user_q = st.text_input("Ask a question", placeholder="Type your question here…")
         if st.button("Send", type="primary", use_container_width=True) and user_q.strip():
             push_chat(user_q.strip())
 
-# ----------------------------
-# Top bar
-# ----------------------------
+# --------------------------------------------------
+# Top Bar
+# --------------------------------------------------
 st.markdown(
     """
 <div class="topbar">
-  <div class="brand"><span class="brand-badge">W</span> FinanceHub</div>
+  <div class="brand"><div class="badge">W</div> FinanceHub</div>
   <div class="nav">
     <span>MyHub</span>
     <span>Credit Cards</span>
@@ -230,9 +237,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ----------------------------
-# Hero section (includes button to activate AI)
-# ----------------------------
+# --------------------------------------------------
+# Hero Section
+# --------------------------------------------------
 left, right = st.columns([1.2, 1])
 with left:
     st.markdown('<div class="hero">', unsafe_allow_html=True)
@@ -251,33 +258,30 @@ with left:
         st.rerun()
 
     st.markdown(
-        '<p class="small">AI is optional: it explains features and suggests where to click next (no login, no private data).</p>',
+        '<div class="small">AI is optional: it explains features and suggests where to click next (no login, no private data).</div>',
         unsafe_allow_html=True,
     )
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
     st.markdown('<div class="video-card">Meet FinanceHub ▶</div>', unsafe_allow_html=True)
     st.caption("Placeholder for an intro video (optional).")
 
-# ----------------------------
-# Section builder
-# ----------------------------
+# --------------------------------------------------
+# Section Builder
+# --------------------------------------------------
 def section(kicker, title, features, footer_link="View all features →"):
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown(f'<div class="section-kicker">{kicker}</div>', unsafe_allow_html=True)
-    st.markdown(f'<p class="section-title">{title}</p>', unsafe_allow_html=True)
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    st.markdown(f'<div class="kicker">{kicker}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
     for name, desc in features:
-        st.markdown(
-            f'<div class="feature"><b>＋ {name}</b><div class="muted">{desc}</div></div>',
-            unsafe_allow_html=True,
-        )
-    st.markdown(f'<div class="linkish" style="margin-top:12px;">{footer_link}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="feature"><b>＋ {name}</b><div class="muted">{desc}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="link">{footer_link}</div>', unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------------------
-# Main sections
-# ----------------------------
+# --------------------------------------------------
+# Main Sections (important only)
+# --------------------------------------------------
 section(
     "BUDGETING & SPENDING",
     "Make your money\nwork for you",
@@ -327,7 +331,7 @@ section(
     "IDENTITY",
     "Protect your\nidentity",
     [
-        ("Dark Web Monitoring", "Get notified if your info appears in common leak sources."),
+        ("Dark Web Monitoring", "Get notified if your information appears in common leak sources."),
         ("Identity Theft Insurance", "Coverage support if identity theft occurs (summary)."),
         ("Identity Monitoring", "Alerts for suspicious activity involving identity and accounts."),
     ],
