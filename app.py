@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 import streamlit as st
 from openai import OpenAI
@@ -56,9 +57,18 @@ section.main { background: #f6f7fb; }
   font-family:Georgia,"Times New Roman",serif; font-size:72px; font-weight:700;
   line-height:.98; color:#0f172a; margin:0;
 }
-.hero-sub{ font-size:16px; color:#475569; margin-top:14px; max-width:680px; }
-.hero-cta-row{ margin-top:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.hero-sub{ font-size:16px; color:#475569; margin-top:14px; max-width:620px; }
+.hero-cta-row{ margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
 .note{ font-size:12px; color:#64748b; margin-top:10px; }
+
+/* --- New: AI helper text above button --- */
+.ai-helper{
+  font-size:13px;
+  color:#475569;
+  margin-top:10px;
+  max-width:620px;
+}
+.ai-helper b{ color:#0f172a; }
 
 /* --- Video card --- */
 .video-card{
@@ -138,8 +148,26 @@ section.main { background: #f6f7fb; }
 )
 
 # --------------------------------------------------
-# AI (Natural, no rigid format)
+# AI (Natural, no rigid format, no forced "next clicks")
 # --------------------------------------------------
+def _cap_to_8_sentences(text: str) -> str:
+    """Hard cap output to <= 8 sentences, preserving natural punctuation."""
+    if not text:
+        return text
+    # Normalize whitespace
+    t = re.sub(r"\s+", " ", text).strip()
+
+    # Split on sentence endings. This is simple but works well for UI chat.
+    parts = re.split(r"(?<=[.!?])\s+", t)
+
+    capped = " ".join(parts[:8]).strip()
+
+    # If model returned no sentence punctuation, cap by length as fallback
+    if capped == t and len(parts) <= 1 and len(capped) > 600:
+        capped = capped[:600].rsplit(" ", 1)[0] + "…"
+
+    return capped
+
 def ask_ai(question: str) -> str:
     prompt = f"""
 You are a friendly AI onboarding assistant for a finance app UI.
@@ -151,11 +179,12 @@ Your role:
 - Never claim access to personal or private data
 
 Important rules:
+- Reply in NO MORE THAN 8 sentences total.
 - Do NOT use fixed formats, numbered lists, or checklists unless the user asks for them
 - Do NOT give compliance-style or scripted answers
 - Keep the tone natural, supportive, and conversational
 - If helpful, casually mention where in the app a feature lives (e.g., “Credit section”)
-- If the question is vague, ask ONE short clarifying question
+- If the question is vague, ask ONE short clarifying question (and keep it within 8 sentences)
 
 Context:
 This app includes budgeting, credit education, offers comparison, investments tracking, and identity protection.
@@ -175,7 +204,8 @@ Respond naturally, like a helpful product guide.
             ],
             temperature=0.6,
         )
-        return r.choices[0].message.content.strip()
+        raw = r.choices[0].message.content.strip()
+        return _cap_to_8_sentences(raw)
     except Exception:
         return "Sorry — I ran into a temporary issue. Please try again."
 
@@ -188,6 +218,7 @@ def push_chat(q: str):
 # --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
+        # Use your picture (no robot emoji)
         img_candidates = ["ai_assistant.png", "picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
@@ -256,41 +287,31 @@ st.markdown(
 )
 
 # --------------------------------------------------
-# Hero (8–10 sentences + AI button higher + description)
+# Hero
 # --------------------------------------------------
 left, right = st.columns([1.25, 1])
 with left:
     st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
     st.markdown('<p class="hero-title">Supercharge<br/>Your Finances</p>', unsafe_allow_html=True)
-
     st.markdown(
-        """
-<div class="hero-sub">
-FinanceHub is a simple place to explore the most important parts of personal finance in one dashboard.
-If you’re new, it helps you understand what each feature does without needing deep financial knowledge.
-You can learn how budgeting works, track spending patterns, and spot subscriptions that quietly waste money.
-In the Credit area, you can learn what affects credit scores and what actions usually improve them over time.
-In Offers, you can compare common financial products and understand what “good terms” usually mean.
-In Investments, you can learn how to monitor progress and stay focused on long-term goals instead of noise.
-In Identity protection, you can explore safety tools and understand how monitoring helps reduce risk.
-This demo is designed for onboarding and education, so it does not require login and it does not use private data.
-If you ever feel lost, the app is built to guide you back to the right section quickly.
-</div>
-""",
+        '<div class="hero-sub">FinanceHub helps you make the most of your money. '
+        'Strengthen your credit, budget better, track offers, monitor investments, and protect your identity — all in one place.</div>',
+        unsafe_allow_html=True,
+    )
+
+    # New: description for AI Assistance before button
+    st.markdown(
+        '<div class="ai-helper"><b>AI Assistance:</b> Ask questions anytime to learn more, explore features, '
+        'and get simple explanations in plain English.</div>',
         unsafe_allow_html=True,
     )
 
     st.markdown('<div class="hero-cta-row">', unsafe_allow_html=True)
+    st.button("Get Started for Free", type="primary")
     if st.button("Ask AI Assistant"):
         st.session_state.show_ai = True
         st.rerun()
-    st.markdown(
-        '<span class="note">We also have AI Assistance which can help you to know more and provide service while you explore the app.</span>',
-        unsafe_allow_html=True,
-    )
     st.markdown("</div>", unsafe_allow_html=True)
-
-    st.button("Get Started for Free", type="primary")
     st.markdown('<div class="note">AI is optional: education + navigation (no login, no private data).</div>', unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
