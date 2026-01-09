@@ -7,6 +7,10 @@ from openai import OpenAI
 # ----------------------------
 st.set_page_config(page_title="FinanceHub + AI Guide", page_icon="💳", layout="wide")
 
+# AI Assistant toggle state (OFF by default)
+if "show_ai" not in st.session_state:
+    st.session_state.show_ai = False
+
 # Read key safely (Streamlit secrets first, then env)
 api_key = None
 if hasattr(st, "secrets") and "OPENAI_API_KEY" in st.secrets:
@@ -20,7 +24,7 @@ if not api_key:
 
 client = OpenAI(api_key=api_key)
 
-# Model (keep it flexible)
+# Model (safe default for demos)
 CHAT_MODEL = (
     (st.secrets.get("OPENAI_CHAT_MODEL") if hasattr(st, "secrets") else None)
     or os.getenv("OPENAI_CHAT_MODEL")
@@ -61,7 +65,7 @@ st.markdown(
   }
   .hero-title { font-size: 56px; font-weight: 800; line-height: 1.0; margin:0; }
   .hero-sub { font-size: 16px; opacity: 0.85; margin-top: 10px; max-width: 560px;}
-  .cta { margin-top: 16px; }
+  .cta { margin-top: 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   .video-card {
     background: #5b77f4;
     border-radius: 18px;
@@ -97,7 +101,6 @@ st.markdown(
 # Helper: call model (Chat Completions)
 # ----------------------------
 def ask_ai(user_question: str) -> str:
-    # Context: Only YOUR app's public sections (safe)
     app_context = """
 This is a public finance onboarding UI with these main sections:
 - Budgeting & Spending: Budgeting Tool, Spending Tracker, Subscription Manager, WalletScore
@@ -141,42 +144,45 @@ Answer with:
     except Exception as e:
         return f"Sorry — I hit an error calling the model: {e}"
 
+# ----------------------------
+# Sidebar: AI Assistant (ONLY when activated)
+# ----------------------------
+if st.session_state.show_ai:
+    with st.sidebar:
+        st.markdown("## 🤖 AI Assistant")
+        st.caption("Optional onboarding guide (no login, no private data).")
+
+        if "chat" not in st.session_state:
+            st.session_state.chat = []
+
+        # Close button
+        if st.button("❌ Close AI Assistant", use_container_width=True):
+            st.session_state.show_ai = False
+            st.rerun()
+
+        cols = st.columns(2)
+        if cols[0].button("60-sec tour", use_container_width=True):
+            q = "Give me a 60-second tour of this app. Where should a new user start?"
+            st.session_state.chat.append(("user", q))
+            st.session_state.chat.append(("assistant", ask_ai(q)))
+
+        if cols[1].button("Why score drops?", use_container_width=True):
+            q = "Why can a credit score drop? Explain in plain English."
+            st.session_state.chat.append(("user", q))
+            st.session_state.chat.append(("assistant", ask_ai(q)))
+
+        st.divider()
+
+        for role, msg in st.session_state.chat[-10:]:
+            st.markdown(f"**{'You' if role == 'user' else 'AI'}:** {msg}")
+
+        user_q = st.text_input("Ask a question", placeholder="e.g., What is credit utilization?")
+        if st.button("Send", type="primary", use_container_width=True) and user_q.strip():
+            st.session_state.chat.append(("user", user_q.strip()))
+            st.session_state.chat.append(("assistant", ask_ai(user_q.strip())))
 
 # ----------------------------
-# Sidebar: AI Assistant
-# ----------------------------
-with st.sidebar:
-    st.markdown("## 🤖 AI Assistant")
-    st.caption("Public onboarding guide (no login, no private data).")
-
-    if "chat" not in st.session_state:
-        st.session_state.chat = []
-
-    # quick prompts
-    cols = st.columns(2)
-    if cols[0].button("60-sec tour"):
-        st.session_state.chat.append(("user", "Give me a 60-second tour of this app. Where should a new user start?"))
-        st.session_state.chat.append(("assistant", ask_ai("Give me a 60-second tour of this app. Where should a new user start?")))
-    if cols[1].button("Why score drops?"):
-        st.session_state.chat.append(("user", "Why can a credit score drop? Explain in plain English."))
-        st.session_state.chat.append(("assistant", ask_ai("Why can a credit score drop? Explain in plain English.")))
-
-    st.divider()
-
-    # show chat history
-    for role, msg in st.session_state.chat[-10:]:
-        if role == "user":
-            st.markdown(f"**You:** {msg}")
-        else:
-            st.markdown(f"**AI:** {msg}")
-
-    user_q = st.text_input("Ask a question", placeholder="e.g., What is credit utilization?")
-    if st.button("Send", type="primary", use_container_width=True) and user_q.strip():
-        st.session_state.chat.append(("user", user_q.strip()))
-        st.session_state.chat.append(("assistant", ask_ai(user_q.strip())))
-
-# ----------------------------
-# Top bar (similar)
+# Top bar
 # ----------------------------
 st.markdown(
     """
@@ -197,7 +203,7 @@ st.markdown(
 )
 
 # ----------------------------
-# Hero section (important only)
+# Hero section (includes button to activate AI)
 # ----------------------------
 left, right = st.columns([1.2, 1])
 with left:
@@ -207,9 +213,19 @@ with left:
         '<p class="hero-sub">A single place to learn, explore, and navigate key finance tools: budgeting, credit, offers, investments, and identity protection.</p>',
         unsafe_allow_html=True,
     )
+
     st.markdown('<div class="cta">', unsafe_allow_html=True)
     st.button("Get Started for Free", type="primary")
-    st.markdown('<p class="small">Tip: open the AI Assistant on the left to ask “Where do I start?”</p>', unsafe_allow_html=True)
+
+    ai_label = "✨ Ask AI Assistant" if not st.session_state.show_ai else "🤖 AI Assistant Active"
+    if st.button(ai_label):
+        st.session_state.show_ai = True
+        st.rerun()
+
+    st.markdown(
+        '<p class="small">AI is an optional extension: it explains features and suggests where to click next (no login, no private data).</p>',
+        unsafe_allow_html=True,
+    )
     st.markdown("</div></div>", unsafe_allow_html=True)
 
 with right:
@@ -232,7 +248,7 @@ def section(kicker, title, features, footer_link="View all features →"):
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ----------------------------
-# Main important sections (simplified)
+# Main sections (important only)
 # ----------------------------
 section(
     "BUDGETING & SPENDING",
@@ -283,10 +299,10 @@ section(
     "IDENTITY",
     "Protect your\nidentity",
     [
-        ("Dark Web Monitoring", "Get notified if your information appears in common leak sources."),
+        ("Dark Web Monitoring", "Get notified if your info appears in common leak sources."),
         ("Identity Theft Insurance", "Coverage support if identity theft occurs (summary)."),
         ("Identity Monitoring", "Alerts for suspicious activity involving identity and accounts."),
     ],
 )
 
-st.caption("This is a demo UI + onboarding AI. It does not use private user data and is intended for navigation + education.")
+st.caption("Demo UI + optional onboarding AI. No login and no private user data.")
