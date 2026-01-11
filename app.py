@@ -148,31 +148,31 @@ section.main { background: #f6f7fb; }
 )
 
 # --------------------------------------------------
-# AI helpers: cap to 8 sentences + natural segmentation
+# AI helpers: cap to 4 sentences + natural segmentation
 # --------------------------------------------------
-def _cap_to_8_sentences(text: str) -> str:
+def _cap_to_4_sentences(text: str) -> str:
     if not text:
         return text
     t = re.sub(r"\s+", " ", text).strip()
     parts = re.split(r"(?<=[.!?])\s+", t)
-    capped = " ".join(parts[:8]).strip()
-    if capped == t and len(parts) <= 1 and len(capped) > 650:
-        capped = capped[:650].rsplit(" ", 1)[0] + "…"
+    capped = " ".join(parts[:4]).strip()
+    # fallback cap if the model returns one long sentence
+    if capped == t and len(parts) <= 1 and len(capped) > 420:
+        capped = capped[:420].rsplit(" ", 1)[0] + "…"
     return capped
 
 def _natural_segment(text: str) -> str:
     """
-    Convert long AI paragraph into clean, natural segments:
+    Convert AI paragraph into clean, natural segments:
     - short paragraphs
-    - simple bullets
-    - no rigid headings
+    - simple bullets (keeps it readable)
     """
     if not text:
         return text
 
     s = re.sub(r"\s+", " ", text).strip()
 
-    # Force bullets onto new lines if model writes "- Budgeting:" mid-line
+    # Force bullets onto new lines if model writes "- Credit:" mid-line
     s = re.sub(
         r"\s-\s+(Budgeting|Credit|Offers|Investments|Identity)\s*:",
         r"\n\n- \1:",
@@ -180,18 +180,14 @@ def _natural_segment(text: str) -> str:
         flags=re.I,
     )
 
-    # Split into sentences and rebuild into readable blocks
     sentences = re.split(r"(?<=[.!?])\s+", s)
-
-    blocks = []
-    current = ""
+    blocks, current = [], ""
 
     for sent in sentences:
         sent = sent.strip()
         if not sent:
             continue
 
-        # If a bullet starts, flush current paragraph first
         if sent.startswith("- "):
             if current:
                 blocks.append(current.strip())
@@ -199,28 +195,22 @@ def _natural_segment(text: str) -> str:
             blocks.append(sent)
             continue
 
-        # Keep paragraphs short (2 sentences max)
-        if current:
-            current = current + " " + sent
-        else:
-            current = sent
+        current = (current + " " + sent).strip() if current else sent
 
-        # Decide when to flush a paragraph
-        current_sentence_count = len(re.split(r"(?<=[.!?])\s+", current.strip()))
-        if current_sentence_count >= 2:
+        # keep paragraphs short (max 2 sentences)
+        if len(re.split(r"(?<=[.!?])\s+", current)) >= 2:
             blocks.append(current.strip())
             current = ""
 
     if current:
         blocks.append(current.strip())
 
-    # Join: paragraphs separated by blank lines; bullets already separated
     out = "\n\n".join(blocks)
     out = re.sub(r"\n{3,}", "\n\n", out).strip()
     return out
 
 # --------------------------------------------------
-# AI (Natural, no rigid format, no forced "next clicks")
+# AI (short + includes section links)
 # --------------------------------------------------
 def ask_ai(question: str) -> str:
     prompt = f"""
@@ -233,12 +223,16 @@ Your role:
 - Never claim access to personal or private data
 
 Important rules:
-- Keep the answer NO MORE THAN 8 sentences.
-- Write in a clean, readable way using short paragraphs.
-- If you mention multiple app areas, feel free to use simple bullets.
-- Do NOT use rigid templates or labeled sections (no "Overview:", "Best places:", etc).
-- Do NOT give compliance-style or scripted answers.
-- If the question is vague, ask ONE short clarifying question (still within 8 sentences).
+- The answer MUST be no more than 4 sentences total.
+- Keep it short and helpful (no long explanations).
+- If you mention an app area, include a clickable Markdown link to it:
+  Budgeting -> [Budgeting & Spending](#budgeting)
+  Credit -> [Improve your credit & save](#credit)
+  Offers -> [Offers](#offers)
+  Investments -> [Investments](#investments)
+  Identity -> [Identity](#identity)
+- Do NOT use labeled sections (no "Overview:", etc).
+- If the question is vague, ask ONE short clarifying question (still within 4 sentences).
 
 Context:
 This app includes budgeting, credit education, offers comparison, investments tracking, and identity protection.
@@ -259,7 +253,7 @@ Respond naturally like a helpful product guide, in Markdown.
             temperature=0.6,
         )
         raw = r.choices[0].message.content.strip()
-        capped = _cap_to_8_sentences(raw)
+        capped = _cap_to_4_sentences(raw)
         return _natural_segment(capped)
     except Exception:
         return "Sorry — I ran into a temporary issue. Please try again."
@@ -273,7 +267,6 @@ def push_chat(q: str):
 # --------------------------------------------------
 if st.session_state.show_ai:
     with st.sidebar:
-        # Use your picture (no robot emoji)
         img_candidates = ["ai_assistant.png", "picture.png", "picture.jpg", "picture.jpeg", "picture.webp"]
         img_path = next((p for p in img_candidates if Path(p).exists()), None)
         if img_path:
@@ -304,16 +297,15 @@ if st.session_state.show_ai:
 
         c1, c2 = st.columns(2)
         if c1.button("60-sec tour", use_container_width=True):
-            push_chat("Give me a 60-second tour of this app. Where should a new user start?")
+            push_chat("Give me a very short 60-second tour of this app. Where should a new user start?")
         if c2.button("Where should I start?", use_container_width=True):
-            push_chat("Where should a new user start?")
+            push_chat("Where should I start?")
 
         if st.button("Explain credit score", use_container_width=True):
             push_chat("Explain what a credit score is in simple English.")
 
         st.divider()
 
-        # Render chat as Markdown so paragraphs/bullets display properly
         for role, msg in st.session_state.chat[-10:]:
             st.markdown(f"**{role}:**")
             st.markdown(msg)
@@ -356,7 +348,6 @@ with left:
         unsafe_allow_html=True,
     )
 
-    # AI description before the button
     st.markdown(
         '<div class="ai-helper"><b>AI Assistance:</b> We also have AI Assistance to help you learn more, '
         'explore features, and get simple explanations in plain English.</div>',
@@ -377,9 +368,10 @@ with right:
     st.caption("Placeholder for an intro video (optional).")
 
 # --------------------------------------------------
-# Section builder
+# Section builder (NOW WITH ANCHOR IDS)
 # --------------------------------------------------
-def section(kicker: str, title: str, features: list, footer: str = "View all features →"):
+def section(section_id: str, kicker: str, title: str, features: list, footer: str = "View all features →"):
+    st.markdown(f'<div id="{section_id}"></div>', unsafe_allow_html=True)  # anchor target
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.markdown(f'<div class="section-kicker">{kicker}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
@@ -392,9 +384,10 @@ def section(kicker: str, title: str, features: list, footer: str = "View all fea
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --------------------------------------------------
-# Main sections
+# Main sections (WITH IDS)
 # --------------------------------------------------
 section(
+    "budgeting",
     "BUDGETING & SPENDING",
     "Make your money\nwork for you",
     [
@@ -406,6 +399,7 @@ section(
 )
 
 section(
+    "credit",
     "CREDIT",
     "Improve your\ncredit & save",
     [
@@ -419,6 +413,7 @@ section(
 )
 
 section(
+    "offers",
     "OFFERS",
     "Personalized offers\nfor your credit",
     [
@@ -429,6 +424,7 @@ section(
 )
 
 section(
+    "investments",
     "INVESTMENTS",
     "Monitor and track\nyour investments",
     [
@@ -440,6 +436,7 @@ section(
 )
 
 section(
+    "identity",
     "IDENTITY",
     "Protect your\nidentity",
     [
