@@ -1,6 +1,7 @@
 import os
 import re
 from pathlib import Path
+
 import streamlit as st
 from openai import OpenAI
 
@@ -78,6 +79,41 @@ section.main { background: #f6f7fb; }
   border:1px solid rgba(0,0,0,.05);
 }
 
+/* --- Outcomes strip --- */
+.outcomes-wrap{
+  background:white;
+  border:1px solid #ececf3;
+  border-radius:22px;
+  padding:22px;
+  margin-top:18px;
+}
+.outcomes-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+}
+@media (max-width:900px){
+  .outcomes-grid{ grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:500px){
+  .outcomes-grid{ grid-template-columns:1fr; }
+}
+.outcome-card{
+  background:#f6f7fb;
+  border-radius:18px;
+  padding:18px;
+}
+.outcome-value{
+  font-size:28px;
+  font-weight:900;
+  color:#0f172a;
+}
+.outcome-label{
+  font-size:14px;
+  color:#475569;
+  margin-top:6px;
+}
+
 /* --- Sections --- */
 .section-card{
   background:white; border:1px solid #ececf3; border-radius:22px;
@@ -148,7 +184,7 @@ section.main { background: #f6f7fb; }
 )
 
 # --------------------------------------------------
-# AI helpers: cap to 4 sentences + natural segmentation
+# Helpers
 # --------------------------------------------------
 def _cap_to_4_sentences(text: str) -> str:
     if not text:
@@ -156,58 +192,60 @@ def _cap_to_4_sentences(text: str) -> str:
     t = re.sub(r"\s+", " ", text).strip()
     parts = re.split(r"(?<=[.!?])\s+", t)
     capped = " ".join(parts[:4]).strip()
-    # fallback cap if the model returns one long sentence
     if capped == t and len(parts) <= 1 and len(capped) > 420:
         capped = capped[:420].rsplit(" ", 1)[0] + "…"
     return capped
 
 def _natural_segment(text: str) -> str:
-    """
-    Convert AI paragraph into clean, natural segments:
-    - short paragraphs
-    - simple bullets (keeps it readable)
-    """
     if not text:
         return text
-
     s = re.sub(r"\s+", " ", text).strip()
-
-    # Force bullets onto new lines if model writes "- Credit:" mid-line
     s = re.sub(
         r"\s-\s+(Budgeting|Credit|Offers|Investments|Identity)\s*:",
         r"\n\n- \1:",
         s,
         flags=re.I,
     )
-
     sentences = re.split(r"(?<=[.!?])\s+", s)
     blocks, current = [], ""
-
     for sent in sentences:
         sent = sent.strip()
         if not sent:
             continue
-
         if sent.startswith("- "):
             if current:
                 blocks.append(current.strip())
                 current = ""
             blocks.append(sent)
             continue
-
         current = (current + " " + sent).strip() if current else sent
-
-        # keep paragraphs short (max 2 sentences)
         if len(re.split(r"(?<=[.!?])\s+", current)) >= 2:
             blocks.append(current.strip())
             current = ""
-
     if current:
         blocks.append(current.strip())
-
     out = "\n\n".join(blocks)
     out = re.sub(r"\n{3,}", "\n\n", out).strip()
     return out
+
+def pdf_download(path: str, label: str):
+    """
+    Add a PDF download button.
+    Put your PDF in the same folder as this app and set `path` to its filename,
+    e.g. "advanced_financial_guide.pdf".
+    """
+    p = Path(path)
+    if p.exists():
+        with open(p, "rb") as f:
+            st.download_button(
+                label=label,
+                data=f,
+                file_name=p.name,
+                mime="application/pdf",
+                use_container_width=True,
+            )
+    else:
+        st.info(f"PDF not found: {p.name}. Add it to the app folder to enable download.")
 
 # --------------------------------------------------
 # AI (short + includes section links)
@@ -349,8 +387,8 @@ with left:
     )
 
     st.markdown(
-        '<div class="ai-helper"><b>AI Assistance:</b> We also have AI Assistance to help you learn more, '
-        'explore features, and get simple explanations in plain English.</div>',
+        '<div class="ai-helper"><b>AI-Assisted Onboarding:</b> Our optional AI assistant helps new users '
+        'understand financial concepts, explains features in context, and guides exploration in simple, plain English.</div>',
         unsafe_allow_html=True,
     )
 
@@ -368,10 +406,52 @@ with right:
     st.caption("Placeholder for an intro video (optional).")
 
 # --------------------------------------------------
+# Key Financial Outcomes (Improvement 1)
+# --------------------------------------------------
+st.markdown(
+    """
+<div class="outcomes-wrap">
+  <div class="section-kicker">KEY FINANCIAL OUTCOMES</div>
+  <div class="outcomes-grid">
+    <div class="outcome-card">
+      <div class="outcome-value">$ Saved</div>
+      <div class="outcome-label">
+        Discover potential annual savings through better credit cards,
+        loans, and spending decisions.
+      </div>
+    </div>
+    <div class="outcome-card">
+      <div class="outcome-value">+ Credit</div>
+      <div class="outcome-label">
+        Track and improve your credit score over time with monitoring
+        and guided plans.
+      </div>
+    </div>
+    <div class="outcome-card">
+      <div class="outcome-value">↓ Risk</div>
+      <div class="outcome-label">
+        Reduce financial risk with identity monitoring, alerts,
+        and theft protection.
+      </div>
+    </div>
+    <div class="outcome-card">
+      <div class="outcome-value">Net Worth</div>
+      <div class="outcome-label">
+        See your full financial picture by tracking assets,
+        debts, and investments in one place.
+      </div>
+    </div>
+  </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+# --------------------------------------------------
 # Section builder (NOW WITH ANCHOR IDS)
 # --------------------------------------------------
 def section(section_id: str, kicker: str, title: str, features: list, footer: str = "View all features →"):
-    st.markdown(f'<div id="{section_id}"></div>', unsafe_allow_html=True)  # anchor target
+    st.markdown(f'<div id="{section_id}"></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.markdown(f'<div class="section-kicker">{kicker}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
@@ -447,6 +527,27 @@ section(
 )
 
 # --------------------------------------------------
+# Advanced resources + PDF Download (Improvement 4)
+# --------------------------------------------------
+st.markdown('<div class="section-card">', unsafe_allow_html=True)
+st.markdown('<div class="section-kicker">ADVANCED USERS</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="section-title">Download detailed\nfinancial insights</div>',
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<div class="hero-sub">'
+    'For users who want deeper analysis, detailed explanations, and methodology, '
+    'we provide optional downloadable resources without cluttering the main interface.'
+    '</div>',
+    unsafe_allow_html=True,
+)
+
+# Put your PDF in the same folder as this script (example filename below)
+pdf_download("advanced_financial_guide.pdf", "Download Advanced Financial Guide (PDF)")
+st.markdown("</div>", unsafe_allow_html=True)
+
+# --------------------------------------------------
 # End page: "Find the Best Deals"
 # --------------------------------------------------
 st.markdown('<div class="deals-wrap">', unsafe_allow_html=True)
@@ -485,4 +586,4 @@ st.button("View All FinanceHub Awards")
 st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-st.caption("Demo UI + optional onboarding AI. Educational only. No login and no private user data.")
+st.caption("Demo UI + optional AI-assisted onboarding. Educational only. No login and no private user data.")
